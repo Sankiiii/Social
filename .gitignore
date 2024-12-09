@@ -20,6 +20,11 @@ migrate_working_dir/
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
 #.vscode/
+#version : v1.0.0
+
+# MAJOR Version (1) - Incremented when you make incompatible changes or major revisions to your project.
+# MINOR Version (0) -  Incremented when you add functionality in a backward-compatible way.
+# MINOR Version (0) - Incremented when you make backward-compatible bug fixes.
 
 # Flutter/Dart/Pub related
 **/doc/api/
