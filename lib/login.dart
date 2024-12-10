@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for inputFormatters
 
 class MyLogin extends StatefulWidget {
   const MyLogin({super.key});
@@ -13,6 +14,7 @@ class _MyLoginState extends State<MyLogin> {
   final TextEditingController _passwordController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
+  String? _errorMessage; // To store error messages
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,6 @@ class _MyLoginState extends State<MyLogin> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Top Image
             Padding(
               padding: const EdgeInsets.only(top: 50.0),
               child: Image.asset(
@@ -33,8 +34,6 @@ class _MyLoginState extends State<MyLogin> {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Heading
             const Text(
               'SOCIAL',
               style: TextStyle(
@@ -45,23 +44,26 @@ class _MyLoginState extends State<MyLogin> {
               ),
             ),
             const SizedBox(height: 10),
-
-            // Tagline
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30.0),
-              child: Text(
-                'Your Voice for a Cleaner City!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Amaranth',
-                  fontSize: 16,
-                  color: Color(0xFF442C2E),
+            if (_errorMessage != null) // Display error message if it exists
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Login Form
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(20),
               margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -90,31 +92,39 @@ class _MyLoginState extends State<MyLogin> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Username Field with validation
                     TextFormField(
                       controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(50),
+                      ],
                       decoration: InputDecoration(
-                        labelText: 'Username',
-                        hintText: 'Enter your username',
+                        labelText: 'Email',
+                        hintText: 'Enter your email',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        prefixIcon: const Icon(Icons.person),
+                        prefixIcon: const Icon(Icons.email),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your username';
+                          return 'Please enter your email';
+                        }
+                        final emailRegex =
+                            RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                        if (!emailRegex.hasMatch(value)) {
+                          return 'Please enter a valid email address';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
-
-                    // Password Field with validation
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(6),
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Password',
                         hintText: 'Enter your password',
@@ -127,6 +137,9 @@ class _MyLoginState extends State<MyLogin> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
                         }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters long';
+                        }
                         return null;
                       },
                     ),
@@ -135,51 +148,32 @@ class _MyLoginState extends State<MyLogin> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Sign-Up Option
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Don\'t have an account?',
-                  style: TextStyle(fontSize: 14),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, "register");
-                  },
-                  child: const Text(
-                    'Sign Up',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFF442C2E)
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Login Button
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.8,
               child: ElevatedButton(
-                onPressed: () async{
-                  // if (_formKey.currentState?.validate() ?? false) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Logging in...')),
-                                      );
-                     final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-                            email: _usernameController.text,
-                            password: _passwordController.text
-                          );
-                    
-                      if(credential.user?.email != null){
-                         Navigator.pushNamed(context, 'home');
+                onPressed: () async {
+                  if (_formKey.currentState?.validate() ?? false) {
+                    setState(() {
+                      _errorMessage = null; // Clear previous error message
+                    });
+
+                    try {
+                      final credential =
+                          await FirebaseAuth.instance.signInWithEmailAndPassword(
+                        email: _usernameController.text.trim(),
+                        password: _passwordController.text,
+                      );
+
+                      if (credential.user?.email != null) {
+                        Navigator.pushNamed(context, 'home');
                       }
-                   
-                  // }
+                    } catch (e) {
+                      setState(() {
+                        _errorMessage =
+                            'Invalid email or password. Please try again.';
+                      });
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -197,7 +191,21 @@ class _MyLoginState extends State<MyLogin> {
                 ),
               ),
             ),
-            const SizedBox(height: 30), // Add spacing below the button
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, 'register'); // Navigate to the signup screen
+              },
+              child: const Text(
+                "Don't have an account? Sign up",
+                style: TextStyle(
+                  color: Color(0xFF442C2E),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
           ],
         ),
       ),

@@ -5,9 +5,12 @@ import 'package:design_model/home.dart';
 import 'package:design_model/raise_complaint.dart';
 import 'package:design_model/complaint.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:design_model/notification.dart';
+import 'package:design_model/profile.dart';
+
 import 'package:flutter/material.dart';
 
-
+ 
 
 void main()async {
 
@@ -29,7 +32,9 @@ void main()async {
       'loading' : (context) => MyLoading(),
       'home' : (context) => Home(),
       'raise' : (context) => RauseComplaint(),
-      'complaints' : (context) => MyComplaints()
+      'complaints' : (context) => MyComplaints(),
+      'profile' : (context) => ProfilePage(),
+      'notification' : (context) => NotificationPage()
 
     },
   ));

@@ -25,6 +25,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
   List<XFile>? files = [];
   bool isLoading = false;
   String? currentAddress;
+  String? photoLocation; // To store location of the clicked image
 
   User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -50,6 +51,13 @@ class _RauseComplaintState extends State<RauseComplaint> {
     setState(() => isLoading = true);
 
     try {
+      // Get the user's current position
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      final latitude = position.latitude;
+      final longitude = position.longitude;
+
       // Prepare complaint data
       final complaintData = {
         'complaintDescription': _complaintController.text,
@@ -58,6 +66,8 @@ class _RauseComplaintState extends State<RauseComplaint> {
         'complaintType': _complaintType,
         'complaintSubtype': _subtypeController.text,
         'address': currentAddress ?? 'No address available',
+        'latitude': latitude,
+        'longitude': longitude,
         'timestamp': FieldValue.serverTimestamp(),
         'userEmail': hideContact ? 'Hidden' : currentUser?.email,
         'status': 'Pending',
@@ -80,6 +90,9 @@ class _RauseComplaintState extends State<RauseComplaint> {
             .collection('images')
             .add({'path': file.path});
       }
+
+      // Check for nearby complaints within 100 to 80 meters
+      await _checkNearbyComplaints(latitude, longitude);
 
       // Clear form after submission
       setState(() {
@@ -105,40 +118,102 @@ class _RauseComplaintState extends State<RauseComplaint> {
     }
   }
 
-  Future<void> _captureImageAndGetLocation() async {
-  final picker = ImagePicker();
-  try {
-    final capturedFile = await picker.pickImage(source: ImageSource.camera);
+  Future<void> _checkNearbyComplaints(double latitude, double longitude) async {
+    try {
+      // Query Firestore for complaints within 100 to 80 meters radius
+      final complaintsQuery = await FirebaseFirestore.instance
+          .collectionGroup('complaints')
+          .where('status', isEqualTo: 'Pending')
+          .get();
 
-    if (capturedFile != null) {
-      setState(() {
-        files?.add(capturedFile);
-      });
+      int nearbyComplaintsCount = 0;
+      for (var doc in complaintsQuery.docs) {
+        final complaintData = doc.data();
+        final docLatitude = complaintData['latitude'];
+        final docLongitude = complaintData['longitude'];
+
+        // Calculate distance between current complaint and existing complaints
+        double distance = Geolocator.distanceBetween(
+          latitude,
+          longitude,
+          docLatitude,
+          docLongitude,
+        );
+
+        // If within 100 to 80 meters, consider it as a nearby complaint
+        if (distance >= 80 && distance <= 100) {
+          nearbyComplaintsCount++;
+        }
+      }
+
+      // If more than 6 complaints in the area, mark as heatmap
+      if (nearbyComplaintsCount > 6) {
+        await FirebaseFirestore.instance
+            .collection('heatmap')
+            .doc('$latitude,$longitude')
+            .set({
+          'complaintsCount': nearbyComplaintsCount,
+          'latitude': latitude,
+          'longitude': longitude,
+          'status': 'Heatmap',
+        });
+      }
+    } catch (e) {
+      print('Error checking nearby complaints: $e');
+    }
+  }
+
+  Future<void> _captureImageAndGetLocation() async {
+    final picker = ImagePicker();
+    if (files!.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can upload a maximum of 3 images.')),
+      );
+      return;
     }
 
-    await _getCurrentPosition();
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error capturing image: $e')),
-    );
-  }
-}
+    try {
+      // Capture the image using the camera
+      final capturedFile = await picker.pickImage(source: ImageSource.camera);
 
-  Future<void> _getCurrentPosition() async {
-    if (await Permission.location.request().isGranted) {
-      try {
+      if (capturedFile != null) {
+        // Fetch the current location
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
-        currentAddress = await getAddress(position.latitude, position.longitude);
-        setState(() {});
-      } catch (e) {
-        currentAddress = 'Unable to fetch location.';
-        setState(() {});
+
+        final latitude = position.latitude;
+        final longitude = position.longitude;
+
+        // Get address from the coordinates
+        photoLocation = await getAddress(latitude, longitude);
+
+        // Add the image path and location data to Firestore
+        if (currentUser != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser!.uid)
+              .collection('images')
+              .add({
+            'path': capturedFile.path,
+            'latitude': latitude,
+            'longitude': longitude,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // Update the local UI with the captured image
+        setState(() {
+          files?.add(capturedFile);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image and location saved successfully!')),
+        );
       }
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permission is required.')),
+        SnackBar(content: Text('Error capturing image: $e')),
       );
     }
   }
@@ -178,6 +253,11 @@ class _RauseComplaintState extends State<RauseComplaint> {
                 _buildImageFrame(),
                 const SizedBox(height: 20),
                 _buildDetailsFrame(),
+                if (photoLocation != null)
+                  Text(
+                    'Photo Location: $photoLocation',
+                    style: const TextStyle(fontSize: 16, color: Color(0xFF442C2E)),
+                  ),
               ],
             ),
           ),
@@ -303,12 +383,10 @@ class _RauseComplaintState extends State<RauseComplaint> {
                 onPressed: _submitForm,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF442C2E),
-                  minimumSize: const Size(200, 50),
                 ),
-                child: const Text(
-                  'Submit Complaint',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Submit'),
               ),
             ),
           ],
@@ -324,66 +402,42 @@ class _RauseComplaintState extends State<RauseComplaint> {
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontFamily: 'Amaranth',
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF442C2E),
-          ),
-        ),
-        const SizedBox(height: 5),
-        TextFormField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: OutlineInputBorder(),
-            fillColor: Colors.white,
-            filled: true,
-          ),
-          keyboardType: keyboardType,
-          validator: validator,
-        ),
-      ],
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: OutlineInputBorder(),
+      ),
+      keyboardType: keyboardType,
+      validator: validator,
     );
   }
 
   Widget _buildDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Complaint Type',
-          style: TextStyle(
-            fontSize: 16,
-            fontFamily: 'Amaranth',
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF442C2E),
-          ),
-        ),
-        const SizedBox(height: 5),
-        DropdownButtonFormField<String>(
-          value: _complaintType,
-          items: const [
-            DropdownMenuItem(value: 'Noise', child: Text('Noise')),
-            DropdownMenuItem(value: 'Pollution', child: Text('Pollution')),
-            DropdownMenuItem(value: 'Garbage', child: Text('Garbage')),
-            DropdownMenuItem(value: 'Road Issue', child: Text('Road Issue')),
-            DropdownMenuItem(value: 'Other', child: Text('Other')),
-          ],
-          onChanged: (value) => setState(() => _complaintType = value),
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            fillColor: Colors.white,
-            filled: true,
-          ),
-          validator: (value) => value == null ? 'Please select a complaint type' : null,
-        ),
-      ],
+    return DropdownButtonFormField<String>(
+      value: _complaintType,
+      onChanged: (value) {
+        setState(() {
+          _complaintType = value;
+        });
+      },
+      items: [
+        'Water',
+        'Road',
+        'Waste Management',
+        'Electronics',
+        'Others'
+      ]
+          .map((e) => DropdownMenuItem(
+                value: e,
+                child: Text(e),
+              ))
+          .toList(),
+      decoration: const InputDecoration(
+        labelText: 'Complaint Type',
+        border: OutlineInputBorder(),
+      ),
     );
   }
 }
