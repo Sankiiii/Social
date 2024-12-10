@@ -164,11 +164,4 @@ class _ComplaintDetailState extends State<ComplaintDetail> {
   }
 }
 
-void main() {
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const ComplaintDetail(), // Set Home as the starting screen
-    ),
-  );
-}
+

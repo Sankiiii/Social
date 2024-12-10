@@ -32,18 +32,6 @@ class _MyComplaintsState extends State<MyComplaints> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFEEAE6),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFEDBD0),
-        title: const Text(
-          'My Complaints',
-          style: TextStyle(
-            fontFamily: 'Amaranth',
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            color: Color(0xFF442C2E),
-          ),
-        ),
-      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: fetchComplaints(),
         builder: (context, snapshot) {

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -12,8 +9,6 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   String username = "Loading..."; // Placeholder before fetching
-  File? profileImageFile;
-  String? profileImageUrl;
 
   @override
   void initState() {
@@ -30,7 +25,6 @@ class _ProfilePageState extends State<ProfilePage> {
           .get();
       setState(() {
         username = userDoc.data()?['username'] ?? "Unknown User";
-        profileImageUrl = userDoc.data()?['profileImageUrl'];
       });
     }
   }
@@ -44,36 +38,6 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         username = newUsername;
       });
-    }
-  }
-
-  Future<void> _updateProfileImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        profileImageFile = File(pickedFile.path);
-      });
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Upload image to Firebase Storage
-        try {
-          final storageRef = FirebaseStorage.instance.ref().child('profile_images').child(user.uid + '.jpg');
-          await storageRef.putFile(profileImageFile!);
-          final imageUrl = await storageRef.getDownloadURL();
-          // Update user's profile image URL in Firestore
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-            'profileImageUrl': imageUrl,
-          });
-          setState(() {
-            profileImageUrl = imageUrl;
-          });
-        } catch (e) {
-          print("Error uploading image: $e");
-        }
-      }
     }
   }
 
@@ -157,30 +121,11 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Column(
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Circle Avatar for Profile Picture
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.grey[300],
-                        backgroundImage: profileImageUrl != null
-                            ? NetworkImage(profileImageUrl!)
-                            : const AssetImage('assets/images/profile_placeholder.png') as ImageProvider,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,  // Adjusted position to make sure icon appears correctly
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                          onPressed: _updateProfileImage,
-                        ),
-                      ),
-                    ],
+                  // Circle Avatar for Profile Picture (Removed Upload Option)
+                  const CircleAvatar(
+                    radius: 60,
+                    backgroundColor: Colors.grey,
+                    backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
                   ),
                   const SizedBox(height: 10),
                   Text(
