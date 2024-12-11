@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
@@ -19,29 +18,25 @@ class _RauseComplaintState extends State<RauseComplaint> {
   final TextEditingController _complaintController = TextEditingController();
   final TextEditingController _landmarkController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _subtypeController = TextEditingController();
   String? _complaintType;
+  String? _complaintSubtype;
   bool hideContact = false;
-  List<XFile>? files = [];
+  List<XFile> files = [];
   bool isLoading = false;
   String? currentAddress;
-  String? photoLocation;
-
-  User? currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   void dispose() {
     _complaintController.dispose();
     _landmarkController.dispose();
     _phoneController.dispose();
-    _subtypeController.dispose();
     super.dispose();
   }
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (files == null || files!.isEmpty) {
+    if (files.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload at least one image!')),
       );
@@ -51,6 +46,16 @@ class _RauseComplaintState extends State<RauseComplaint> {
     setState(() => isLoading = true);
 
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You need to be logged in to raise a complaint!')),
+        );
+        return;
+      }
+
+      final userId = currentUser.uid;
+
       // Get the user's current position
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -64,44 +69,37 @@ class _RauseComplaintState extends State<RauseComplaint> {
         'landmark': _landmarkController.text,
         'phone': hideContact ? 'Hidden' : _phoneController.text,
         'complaintType': _complaintType,
-        'complaintSubtype': _subtypeController.text,
+        'complaintSubtype': _complaintSubtype,
         'address': currentAddress ?? 'No address available',
         'latitude': latitude,
         'longitude': longitude,
         'timestamp': FieldValue.serverTimestamp(),
-        'userEmail': hideContact ? 'Hidden' : currentUser?.email,
+        'anonymous': false, // Default value
         'status': 'Pending',
       };
 
-      // Save the complaint to Firestore
+      // Save the complaint to Firestore under the logged-in user's collection
       final complaintDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser?.uid)
-          .collection('complaints')
+          .collection('users/$userId/complaints')
           .add(complaintData);
 
-      // Add images as sub-collection
-      for (var file in files!) {
+      // Add images to Firestore
+      for (var file in files) {
         await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser?.uid)
-            .collection('complaints')
+            .collection('users/$userId/complaints')
             .doc(complaintDoc.id)
             .collection('images')
             .add({'path': file.path});
       }
-
-      // Check for nearby complaints within 100 to 80 meters
-      await _checkNearbyComplaints(latitude, longitude);
 
       // Clear form after submission
       setState(() {
         _complaintController.clear();
         _landmarkController.clear();
         _phoneController.clear();
-        _subtypeController.clear();
         _complaintType = null;
-        files = [];
+        _complaintSubtype = null;
+        files.clear();
         currentAddress = null;
         hideContact = false;
       });
@@ -118,66 +116,19 @@ class _RauseComplaintState extends State<RauseComplaint> {
     }
   }
 
-  Future<void> _checkNearbyComplaints(double latitude, double longitude) async {
-    try {
-      // Query Firestore for complaints within 100 to 80 meters radius
-      final complaintsQuery = await FirebaseFirestore.instance
-          .collectionGroup('complaints')
-          .where('status', isEqualTo: 'Pending')
-          .get();
-
-      int nearbyComplaintsCount = 0;
-      for (var doc in complaintsQuery.docs) {
-        final complaintData = doc.data();
-        final docLatitude = complaintData['latitude'];
-        final docLongitude = complaintData['longitude'];
-
-        // Calculate distance between current complaint and existing complaints
-        double distance = Geolocator.distanceBetween(
-          latitude,
-          longitude,
-          docLatitude,
-          docLongitude,
-        );
-
-        // If within 100 to 80 meters, consider it as a nearby complaint
-        if (distance >= 80 && distance <= 100) {
-          nearbyComplaintsCount++;
-        }
-      }
-
-      // If more than 6 complaints in the area, mark as heatmap
-      if (nearbyComplaintsCount > 6) {
-        await FirebaseFirestore.instance
-            .collection('heatmap')
-            .doc('$latitude,$longitude')
-            .set({
-          'complaintsCount': nearbyComplaintsCount,
-          'latitude': latitude,
-          'longitude': longitude,
-          'status': 'Heatmap',
-        });
-      }
-    } catch (e) {
-      print('Error checking nearby complaints: $e');
-    }
-  }
-
-  Future<void> _captureImageAndGetLocation() async {
-    final picker = ImagePicker();
-    if (files!.length >= 2) {
+  Future<void> _captureImage() async {
+    if (files.length >= 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You can upload a maximum of 2 images.')),
+        const SnackBar(content: Text('You can upload a maximum of 2 images!')),
       );
       return;
     }
 
+    final picker = ImagePicker();
     try {
-      // Capture the image using the camera
       final capturedFile = await picker.pickImage(source: ImageSource.camera);
 
       if (capturedFile != null) {
-        // Fetch the current location
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
@@ -185,36 +136,15 @@ class _RauseComplaintState extends State<RauseComplaint> {
         final latitude = position.latitude;
         final longitude = position.longitude;
 
-        // Get address from the coordinates
         String address = await getAddress(latitude, longitude);
 
-        // Update the UI with the fetched address
         setState(() {
-          photoLocation = address;
+          files.add(capturedFile);
           currentAddress = address;
         });
 
-        // Add the image path and location data to Firestore
-        if (currentUser != null) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser!.uid)
-              .collection('images')
-              .add({
-            'path': capturedFile.path,
-            'latitude': latitude,
-            'longitude': longitude,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
-        }
-
-        // Update the local UI with the captured image
-        setState(() {
-          files?.add(capturedFile);
-        });
-
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image and location saved successfully!')),
+          const SnackBar(content: Text('Image captured successfully!')),
         );
       }
     } catch (e) {
@@ -228,7 +158,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
     try {
       final placemarks = await placemarkFromCoordinates(lat, long);
       final place = placemarks[0];
-      return "${place.locality}, ${place.subLocality}, ${place.street}, ${place.postalCode}";
+      return "${place.locality}, ${place.subLocality}, ${place.thoroughfare}, ${place.postalCode}";
     } catch (e) {
       return 'Unable to fetch address.';
     }
@@ -236,14 +166,21 @@ class _RauseComplaintState extends State<RauseComplaint> {
 
   void _removeImage(int index) {
     setState(() {
-      files!.removeAt(index);
-      photoLocation = null;
+      files.removeAt(index);
     });
+  }
+
+  List<String> _getSubtypesForComplaintType() {
+    if (_complaintType == 'Solid Waste Management') {
+      return ['Garbage Dumping', 'Overflowing Bins', 'Uncollected Waste'];
+    }
+    return []; // No subtypes for other complaint types
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+     
       backgroundColor: const Color(0xFFFEEAE6),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -251,141 +188,194 @@ class _RauseComplaintState extends State<RauseComplaint> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                _buildImageSection(),
-                if (photoLocation != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Color(0xFF442C2E)),
-                        Expanded(
-                          child: Text(
-                            photoLocation!,
-                            style: const TextStyle(fontSize: 16),
-                          ),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: files
+                      .asMap()
+                      .entries
+                      .map(
+                        (entry) => Stack(
+                          children: [
+                            Image.file(
+                              File(entry.value.path),
+                              height: 150,
+                              width: 150,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              right: 0,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.cancel,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _removeImage(entry.key),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                if (files.length < 2)
+                  GestureDetector(
+                    onTap: _captureImage,
+                    child: Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Text('Upload Image',
+                            style: TextStyle(fontSize: 18)),
+                      ),
                     ),
                   ),
                 const SizedBox(height: 20),
-                _buildDetailsFrame(),
+                if (currentAddress != null)
+                  Text(
+                    'Location: $currentAddress',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                const SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _complaintController,
+                        decoration: const InputDecoration(
+                          labelText: 'Complaint Description',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a complaint description';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _landmarkController,
+                        decoration: const InputDecoration(
+                          labelText: 'Landmark (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a phone number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<String>(
+                        value: _complaintType,
+                        decoration: const InputDecoration(
+                          labelText: 'Complaint Type',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _complaintType = value;
+                            _complaintSubtype = null; // Reset subtype when type changes
+                          });
+                        },
+                        items: [
+                          DropdownMenuItem(
+                            value: 'Solid Waste Management',
+                            child: Text('Solid Waste Management'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Damaged Infrastructure',
+                            child: Text('Damaged Infrastructure (Coming Soon)', style: TextStyle(color: Colors.grey)),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Road Pot Holes',
+                            child: Text('Road Pot Holes (Coming Soon)', style: TextStyle(color: Colors.grey)),
+                          ),
+                        ],
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Please select a complaint type';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      if (_complaintType != null)
+                        DropdownButtonFormField<String>(
+                          value: _complaintSubtype,
+                          decoration: const InputDecoration(
+                            labelText: 'Complaint Subtype',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _complaintSubtype = value;
+                            });
+                          },
+                          items: _getSubtypesForComplaintType().map((subtype) {
+                            return DropdownMenuItem(
+                              value: subtype,
+                              child: Text(subtype),
+                            );
+                          }).toList(),
+                          validator: (value) {
+                            if (value == null) {
+                              return 'Please select a complaint subtype';
+                            }
+                            return null;
+                          },
+                        ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          const Text('Hide Contact'),
+                          Switch(
+                            value: hideContact,
+                            onChanged: (value) {
+                              setState(() {
+                                hideContact = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _submitForm,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF442C2E),
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text('Submit Complaint'),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: isLoading ? null : _captureImageAndGetLocation,
-        backgroundColor: const Color(0xFFFEDBD0),
-        child: isLoading
-            ? const CircularProgressIndicator(color: Color(0xFF442C2E))
-            : const Icon(Icons.camera_alt, color: Color(0xFF442C2E)),
-      ),
-    );
-  }
-
-  Widget _buildImageSection() {
-    return files!.isEmpty
-        ? Center(
-            child: GestureDetector(
-              onTap: _captureImageAndGetLocation,
-              child: Text(
-                'Upload Image',
-                style: TextStyle(
-                  fontFamily: 'Amaranth',  // Set Amaranth font
-                  fontSize: 18,
-                  color: Color(0xFF442C2E),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          )
-        : Column(
-            children: [
-              // Display images side by side if there are two images
-              Row(
-                children: List.generate(files!.length, (index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: GestureDetector(
-                      onTap: () => _removeImage(index),
-                      child: Image.file(
-                        File(files![index].path),
-                        width: 150,  // Resize image to fit in a row
-                        height: 150,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          );
-  }
-
-  Widget _buildDetailsFrame() {
-    return Column(
-      children: [
-        Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _complaintController,
-                decoration: const InputDecoration(labelText: 'Complaint Description'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a complaint description';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _landmarkController,
-                decoration: const InputDecoration(labelText: 'Landmark (optional)'),
-              ),
-              TextFormField(
-                controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number (optional)'),
-                keyboardType: TextInputType.phone,
-              ),
-              DropdownButtonFormField<String>(
-                value: _complaintType,
-                decoration: const InputDecoration(labelText: 'Complaint Type'),
-                onChanged: (value) {
-                  setState(() {
-                    _complaintType = value;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Electricity',
-                    child: Text('Electricity'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Water Supply',
-                    child: Text('Water Supply'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Street Light',
-                    child: Text('Street Light'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: isLoading ? null : _submitForm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF442C2E),
-                ),
-                child: isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Submit Complaint'),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

@@ -30,7 +30,6 @@ void main()async {
     debugShowCheckedModeBanner: false,
     initialRoute: 'loading',
     routes: {
-      'session' : (context) => SplashScreen(),
       'register': (context) => MyRegister(),
       'login' : (context) => MyLogin(),
       'loading' : (context) => MyLoading(),
