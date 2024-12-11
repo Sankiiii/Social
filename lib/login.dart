@@ -12,7 +12,9 @@ class MyLogin extends StatefulWidget {
 class _MyLoginState extends State<MyLogin> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
+  bool _isLoading = false;  // For showing a loading indicator
+  bool _passwordVisible = false;  // Toggle password visibility
+  bool isLoggedIn = false;  // To track if the user is logged in
   final _formKey = GlobalKey<FormState>();
   String? _errorMessage; // To store error messages
 
@@ -98,6 +100,7 @@ class _MyLoginState extends State<MyLogin> {
                       inputFormatters: [
                         LengthLimitingTextInputFormatter(50),
                       ],
+                      autofocus: true, // Autofocus on the email field
                       decoration: InputDecoration(
                         labelText: 'Email',
                         hintText: 'Enter your email',
@@ -121,7 +124,7 @@ class _MyLoginState extends State<MyLogin> {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: !_passwordVisible,  // Toggle visibility
                       inputFormatters: [
                         LengthLimitingTextInputFormatter(6),
                       ],
@@ -132,6 +135,16 @@ class _MyLoginState extends State<MyLogin> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _passwordVisible = !_passwordVisible;
+                            });
+                          },
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -151,30 +164,40 @@ class _MyLoginState extends State<MyLogin> {
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.8,
               child: ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState?.validate() ?? false) {
-                    setState(() {
-                      _errorMessage = null; // Clear previous error message
-                    });
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isLoading = true;
+                          _errorMessage = null; // Clear previous error message
+                        });
 
-                    try {
-                      final credential =
-                          await FirebaseAuth.instance.signInWithEmailAndPassword(
-                        email: _usernameController.text.trim(),
-                        password: _passwordController.text,
-                      );
+                        if (_formKey.currentState?.validate() ?? false) {
+                          try {
+                            final credential =
+                                await FirebaseAuth.instance.signInWithEmailAndPassword(
+                              email: _usernameController.text.trim(),
+                              password: _passwordController.text,
+                            );
 
-                      if (credential.user?.email != null) {
-                        Navigator.pushNamed(context, 'home');
-                      }
-                    } catch (e) {
-                      setState(() {
-                        _errorMessage =
-                            'Invalid email or password. Please try again.';
-                      });
-                    }
-                  }
-                },
+                            if (credential.user?.email != null) {
+                              setState(() {
+                                isLoggedIn = true; // Set isLoggedIn to true after successful login
+                              });
+                              Navigator.pushNamed(context, 'home');
+                            }
+                          } catch (e) {
+                            setState(() {
+                              _errorMessage =
+                                  'Invalid email or password. Please try again.';
+                            });
+                          }
+                        }
+
+                        setState(() {
+                          _isLoading = false; // Reset loading state
+                        });
+                      },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
@@ -182,13 +205,15 @@ class _MyLoginState extends State<MyLogin> {
                   ),
                   backgroundColor: const Color(0xFFFEDBD0),
                 ),
-                child: const Text(
-                  'Login',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF442C2E),
-                  ),
-                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF442C2E),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),

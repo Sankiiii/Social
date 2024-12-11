@@ -180,7 +180,23 @@ class _RauseComplaintState extends State<RauseComplaint> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     
+                    appBar: AppBar(
+                         backgroundColor: const Color(0xFFFEDBD0),
+        title: const Text(
+          'Raise Complaint',
+          style: TextStyle(
+            fontFamily: 'Amaranth',
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Color(0xFF442C2E),)
+
+        )
+
+
+
+
+                  // Add a shadow for better aesthetics
+            ),
       backgroundColor: const Color(0xFFFEEAE6),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -360,13 +376,25 @@ class _RauseComplaintState extends State<RauseComplaint> {
                       ElevatedButton(
                         onPressed: isLoading ? null : _submitForm,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF442C2E),
+                          backgroundColor: const Color(0xFF442C2E), // Button color
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20), // Add spacing
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10), // Slightly rounded corners
+                          ),
+                          elevation: 5, // Adds a shadow for better aesthetics
                         ),
                         child: isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white,
+                                color: Colors.white, // Spinner color
                               )
-                            : const Text('Submit Complaint'),
+                            : const Text(
+                                'Submit Complaint',
+                                style: TextStyle(
+                                  color: Colors.white, // Text color
+                                  fontSize: 16, // Larger, readable font
+                                  fontWeight: FontWeight.bold, // Emphasize the text
+                                ),
+                              ),
                       ),
                     ],
                   ),

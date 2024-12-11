@@ -1,9 +1,22 @@
+import 'package:design_model/complaint.dart';
+import 'package:design_model/raise_complaint.dart';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart'; // Import for Carousel
 import 'package:flutter/cupertino.dart';
-import 'package:design_model/raise_complaint.dart';
-import 'package:design_model/complaint.dart';
 import 'package:flutter/services.dart'; // Import for SystemNavigator
+
+// Model class for Complaint data
+class Complaint {
+  final String title;
+  final String status;
+  final String imagePath;
+
+  Complaint({
+    required this.title,
+    required this.status,
+    required this.imagePath,
+  });
+}
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,6 +28,38 @@ class HomeScreen extends StatelessWidget {
       'assets/images/image1.jpg', // Replace with your image paths
       'assets/images/image2.jpg',
       'assets/images/image3.jpg',
+      'assets/images/image4.jpg', // Replace with your image paths
+      'assets/images/image5.jpg',
+      'assets/images/image6.jpg'
+    ];
+
+    // Sample complaints data
+    final List<Complaint> complaints = [
+      Complaint(
+        title: 'Complaint #1',
+        status: 'Hot Complaint',
+        imagePath: 'assets/images/hot_complaint.jpg',
+      ),
+      Complaint(
+        title: 'Complaint #2',
+        status: 'Hot Complaint',
+        imagePath: 'assets/images/hot_complaint.jpg',
+      ),
+      Complaint(
+        title: 'Complaint #3',
+        status: 'Hot Complaint',
+        imagePath: 'assets/images/hot_complaint.jpg',
+      ),
+      Complaint(
+        title: 'Complaint #4',
+        status: 'Hot Complaint',
+        imagePath: 'assets/images/hot_complaint.jpg',
+      ),
+      Complaint(
+        title: 'Complaint #5',
+        status: 'Hot Complaint',
+        imagePath: 'assets/images/hot_complaint.jpg',
+      ),
     ];
 
     return SingleChildScrollView(
@@ -80,7 +125,7 @@ class HomeScreen extends StatelessWidget {
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 5, // Example count
+                  itemCount: complaints.length, // Using valid complaint data
                   itemBuilder: (context, index) {
                     return Card(
                       elevation: 4,
@@ -89,14 +134,14 @@ class HomeScreen extends StatelessWidget {
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.asset(
-                            'assets/images/hot_complaint.jpg', // Replace with your image paths
+                            complaints[index].imagePath, // Using valid image path
                             fit: BoxFit.cover,
                             width: 50,
                             height: 50,
                           ),
                         ),
-                        title: Text('Complaint #${index + 1}'),
-                        subtitle: Text('Status: Hot Complaint'),
+                        title: Text(complaints[index].title),
+                        subtitle: Text('Status: ${complaints[index].status}'),
                         trailing: Icon(
                           CupertinoIcons.exclamationmark_triangle,
                           color: Colors.red,
@@ -125,30 +170,16 @@ class _HomeState extends State<Home> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     const HomeScreen(),
-    const RauseComplaint(), // Replace with your actual RaiseComplaint screen
-    const MyComplaints(), // Replace with your actual MyComplaints screen
+    // Replace with your actual RaiseComplaint screen
+    const RauseComplaint(),
+    // Replace with your actual MyComplaints screen
+    const MyComplaints(),
   ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // switch (index) {
-    //   case 1:
-    //     Navigator.push(
-    //       context,
-    //       MaterialPageRoute(builder: (context) => const RauseComplaint()),
-    //     );
-    //     break;
-    //   case 2:
-    //     Navigator.push(
-    //       context,
-    //       MaterialPageRoute(builder: (context) => const MyComplaints()),
-    //     );
-    //     break;
-    //   default:
-    //     break;
-    // }
   }
 
   Future<bool> _onWillPop() async {
@@ -206,10 +237,10 @@ class _HomeState extends State<Home> {
             },
           ),
           IconButton(
-            icon: const Icon(CupertinoIcons.profile_circled, color: Color(0xFF442C2E),size: 30.0), // Search icon with custom color
+            icon: const Icon(CupertinoIcons.profile_circled, color: Color(0xFF442C2E),size: 30.0), // Profile icon with custom color
             onPressed: () {
               Navigator.pushNamed(context,'profile');
-              print('Search button pressed');
+              print('Profile button pressed');
             },
           ),
         ],

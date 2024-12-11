@@ -140,15 +140,23 @@ class _MyComplaintsState extends State<MyComplaints> {
                         children: [
                           ElevatedButton(
                             onPressed: () {
-                              updateComplaintStatus(
-                                  complaint['id'], 'Canceled');
+                              updateComplaintStatus(complaint['id'], 'Canceled');
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20)),
+                                borderRadius: BorderRadius.circular(8), // Slightly rounded corners
+                              ),
+                              elevation: 4, // Adds a shadow for better aesthetics
                             ),
-                            child: const Text('Cancel'),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontSize: 16, // Slightly larger font
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                           ElevatedButton(
                             onPressed: () {
@@ -159,10 +167,19 @@ class _MyComplaintsState extends State<MyComplaints> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20)),
+                                borderRadius: BorderRadius.circular(8), // Slightly rounded corners
+                              ),
+                              elevation: 4, // Adds a shadow for better aesthetics
                             ),
-                            child: const Text('Delete'),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontSize: 16, // Slightly larger font
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -207,10 +224,14 @@ class _MyComplaintsState extends State<MyComplaints> {
             fontFamily: 'Amaranth',
             fontSize: 16,
             color: status == 'Succeeded'
-                ? Colors.green
-                : status == 'Canceled'
-                    ? Colors.red
-                    : Colors.yellow, // Blue for In Progress
+                   ? Colors.green
+                   : status == 'Pending'
+                       ? Colors.orange
+                       : status == 'Canceled'
+                           ? Colors.red
+                           : status == 'In Progress'
+                               ? Colors.blue
+                               : Colors.yellow, // Blue for In Progress
           ),
         ),
       ],

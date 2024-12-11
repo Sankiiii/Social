@@ -19,7 +19,7 @@ class _NotificationPageState extends State<NotificationPage> {
       return Scaffold(
         appBar: AppBar(
           title: const Text("Complaint Status"),
-          backgroundColor: const Color(0xFFFDEBE7),
+          backgroundColor: const Color(0xFFFEDBD0),// const Color()
         ),
         body: const Center(child: Text('Please log in to see your complaints.')),
       );

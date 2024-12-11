@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -86,8 +88,10 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
                 Navigator.of(context).pop();
+                 final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isLoggedIn', false); // Update login status
                 // Navigate to the Login page
-                Navigator.pushReplacementNamed(context, 'login');
+                Navigator.pushReplacementNamed(context, 'loading');
               },
               child: const Text('Log Out'),
             ),
