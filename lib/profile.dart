@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -16,11 +17,38 @@ class _ProfilePageState extends State<ProfilePage> {
   String username = "Loading...";
   String profilePicUrl = ""; // This will store the profile image CID
   final ImagePicker _picker = ImagePicker();
+  bool isUploading = false;
+  bool isOffline = false; // Flag to track if the user is offline
 
   @override
   void initState() {
     super.initState();
     _fetchUserProfile();
+    _checkConnectivity();
+    _checkPendingImageUploads();
+  }
+
+  // Check internet connectivity
+  Future<void> _checkConnectivity() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      setState(() {
+        isOffline = true;
+      });
+    } else {
+      setState(() {
+        isOffline = false;
+      });
+    }
+  }
+
+  // Check if there are any pending local image uploads when the app is back online
+  Future<void> _checkPendingImageUploads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final localImagePath = prefs.getString('localProfilePicPath');
+    if (localImagePath != null && localImagePath.isNotEmpty) {
+      _uploadPendingImage(File(localImagePath));
+    }
   }
 
   Future<void> _fetchUserProfile() async {
@@ -50,49 +78,93 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _updateProfilePicture(File image) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // Step 1: Upload to Pinata (Image Uploading Function)
-      String cid = await _uploadToPinata(image);
-      
-      // Step 2: Update Firestore with new profile picture CID
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'profilePic': cid,
-      });
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    setState(() {
+      isUploading = true;  // Start uploading
+    });
+    
+    try {
+      if (isOffline) {
+        // Save image locally if the user is offline
+        _saveImageLocally(image);
+        // Show a snackbar or alert to inform the user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No internet connection. Image saved locally.')),
+        );
+      } else {
+        // Step 1: Upload to Pinata (Image Uploading Function)
+        String cid = await _uploadToPinata(image);
+
+        // Step 2: Update Firestore with new profile picture CID
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'profilePic': cid,
+        });
+        setState(() {
+          profilePicUrl = cid; // Update the profile picture URL (CID)
+        });
+      }
+    } catch (e) {
+      // Handle upload failure (show a message, retry, etc.)
+      print('Error uploading image: $e');
+    } finally {
       setState(() {
-        profilePicUrl = cid; // Update the profile picture URL (CID)
+        isUploading = false;  // End uploading
       });
     }
   }
-
- Future<String> _uploadToPinata(File image) async {
-  // Pinata API URL for uploading
-  String apiUrl = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
-  
-  var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-  
-  // Add API key (Make sure to replace these with your actual Pinata API keys)
-  request.headers.addAll({
-    'pinata_api_key': 'YOUR_PINATA_API_KEY',
-    'pinata_secret_api_key': 'YOUR_PINATA_SECRET_API_KEY',
-  });
-  
-  // Add image to the request
-  request.files.add(await http.MultipartFile.fromPath('file', image.path));
-  
-  // Send the request
-  var response = await request.send();
-  var responseBody = await response.stream.bytesToString();
-
-  // Decode the response body as JSON
-  if (response.statusCode == 200) {
-    var jsonResponse = jsonDecode(responseBody);  // Decode the response body
-    return jsonResponse['IpfsHash'];  // Extract the IpfsHash from the JSON response
-  } else {
-    throw Exception('Failed to upload image to Pinata');
-  }
 }
 
+  Future<String> _uploadToPinata(File image) async {
+    String apiUrl = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
+    
+    var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+    
+    request.headers.addAll({
+      'pinata_api_key': '2dfc4e3fec850909b6e1',
+      'pinata_secret_api_key': '3a9b9b71f1d65bf68349049b5316af65a7f48642b281edb9f2aaf7672402080c',
+    });
+    
+    request.files.add(await http.MultipartFile.fromPath('file', image.path));
+    
+    var response = await request.send();
+    var responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(responseBody);
+      return jsonResponse['IpfsHash'];  // Return IPFS hash from the response
+    } else {
+      throw Exception('Failed to upload image to Pinata');
+    }
+  }
+
+  void _saveImageLocally(File image) async {
+    final prefs = await SharedPreferences.getInstance();
+    // Assuming you save the path as a string for later retrieval
+    await prefs.setString('localProfilePicPath', image.path);
+  }
+
+  Future<void> _uploadPendingImage(File image) async {
+    // Try uploading the pending image once the internet is available
+    try {
+      String cid = await _uploadToPinata(image);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'profilePic': cid,
+        });
+        setState(() {
+          profilePicUrl = cid;
+        });
+      }
+      // Remove the saved path after upload
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('localProfilePicPath');
+    } catch (e) {
+      // Handle upload error (show a message, retry, etc.)
+      print('Error uploading pending image: $e');
+    }
+  }
 
   void _showEditUsernameDialog() {
     TextEditingController usernameController = TextEditingController(text: username);
@@ -152,7 +224,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _pickImage() async {
-    // Pick an image from gallery or camera
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       File image = File(pickedFile.path);
@@ -185,12 +256,29 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 children: [
                   // Circle Avatar for Profile Picture (using CID from Firestore)
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.grey,
-                    backgroundImage: profilePicUrl.isNotEmpty
-                        ? NetworkImage('https://gateway.pinata.cloud/ipfs/$profilePicUrl')
-                        : const AssetImage('assets/images/profile_placeholder1.png') as ImageProvider,
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      // Display CircularProgressIndicator if uploading
+                      isUploading
+                          ? const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            )
+                          : CircleAvatar(
+                              radius: 60,
+                              backgroundColor: Colors.grey,
+                              backgroundImage: profilePicUrl.isNotEmpty
+                                  ? NetworkImage('https://gateway.pinata.cloud/ipfs/$profilePicUrl')
+                                  : const AssetImage('assets/images/profile_placeholder1.png') as ImageProvider,
+                            ),
+                      // IconButton for picking a new image
+                      IconButton(
+                        icon: const Icon(Icons.add_a_photo, color: Colors.white, size: 30),
+                        onPressed: _pickImage,
+                        splashRadius: 25,
+                        tooltip: 'Change Profile Picture',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -205,17 +293,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     onPressed: _showEditUsernameDialog,
                     child: const Text(
                       'Edit Username',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                  // Button to Change Profile Picture
-                  TextButton(
-                    onPressed: _pickImage,
-                    child: const Text(
-                      'Change Profile Picture',
                       style: TextStyle(
                         color: Colors.white70,
                         decoration: TextDecoration.underline,

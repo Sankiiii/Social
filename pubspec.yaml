@@ -66,6 +66,7 @@ dev_dependencies:
   cached_network_image : ^3.4.1
 
 
+
 # The following section is specific to Flutter packages.
 flutter:
   fonts:
