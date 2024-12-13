@@ -80,6 +80,11 @@ flutter:
       - assets/images/image6.jpg
       - assets/images/hot_complaint.jpg
       - assets/images/profile_placeholder1.png
+      - assets/images/hot1.jpeg
+      - assets/images/hot2.jpeg
+      - assets/images/hot3.jpeg
+      - assets/images/hot4.jpeg
+      - assets/images/hot5.jpeg
 
 
   uses-material-design: true

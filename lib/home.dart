@@ -36,29 +36,29 @@ class HomeScreen extends StatelessWidget {
     // Sample complaints data
     final List<Complaint> complaints = [
       Complaint(
-        title: 'Complaint #1',
-        status: 'Hot Complaint',
-        imagePath: 'assets/images/hot_complaint.jpg',
+        title: 'Garbage Dumping',
+        status: 'Pending ',
+        imagePath: 'assets/images/hot1.jpeg',
       ),
       Complaint(
-        title: 'Complaint #2',
-        status: 'Hot Complaint',
-        imagePath: 'assets/images/hot_complaint.jpg',
+        title: 'Overflowing Bins',
+        status: 'In Progress',
+        imagePath: 'assets/images/hot2.jpeg',
       ),
       Complaint(
-        title: 'Complaint #3',
+        title: 'Uncollected Waste',
         status: 'Hot Complaint',
-        imagePath: 'assets/images/hot_complaint.jpg',
+        imagePath: 'assets/images/hot3.jpeg',
       ),
       Complaint(
-        title: 'Complaint #4',
-        status: 'Hot Complaint',
-        imagePath: 'assets/images/hot_complaint.jpg',
+        title: 'Garbage Dumping',
+        status: 'Pending',
+        imagePath: 'assets/images/hot4.jpeg',
       ),
       Complaint(
-        title: 'Complaint #5',
-        status: 'Hot Complaint',
-        imagePath: 'assets/images/hot_complaint.jpg',
+        title: 'Overflowing Bins',
+        status: 'In Progress',
+        imagePath: 'assets/images/hot5.jpeg',
       ),
     ];
 
