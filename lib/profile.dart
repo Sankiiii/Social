@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -10,7 +13,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  String username = "Loading..."; // Placeholder before fetching
+  String username = "Loading...";
+  String profilePicUrl = ""; // This will store the profile image CID
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -27,6 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
           .get();
       setState(() {
         username = userDoc.data()?['username'] ?? "Unknown User";
+        profilePicUrl = userDoc.data()?['profilePic'] ?? ''; // Get profile picture CID
       });
     }
   }
@@ -42,6 +48,51 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
   }
+
+  Future<void> _updateProfilePicture(File image) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Step 1: Upload to Pinata (Image Uploading Function)
+      String cid = await _uploadToPinata(image);
+      
+      // Step 2: Update Firestore with new profile picture CID
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profilePic': cid,
+      });
+      setState(() {
+        profilePicUrl = cid; // Update the profile picture URL (CID)
+      });
+    }
+  }
+
+ Future<String> _uploadToPinata(File image) async {
+  // Pinata API URL for uploading
+  String apiUrl = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
+  
+  var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
+  
+  // Add API key (Make sure to replace these with your actual Pinata API keys)
+  request.headers.addAll({
+    'pinata_api_key': 'YOUR_PINATA_API_KEY',
+    'pinata_secret_api_key': 'YOUR_PINATA_SECRET_API_KEY',
+  });
+  
+  // Add image to the request
+  request.files.add(await http.MultipartFile.fromPath('file', image.path));
+  
+  // Send the request
+  var response = await request.send();
+  var responseBody = await response.stream.bytesToString();
+
+  // Decode the response body as JSON
+  if (response.statusCode == 200) {
+    var jsonResponse = jsonDecode(responseBody);  // Decode the response body
+    return jsonResponse['IpfsHash'];  // Extract the IpfsHash from the JSON response
+  } else {
+    throw Exception('Failed to upload image to Pinata');
+  }
+}
+
 
   void _showEditUsernameDialog() {
     TextEditingController usernameController = TextEditingController(text: username);
@@ -88,9 +139,8 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
                 Navigator.of(context).pop();
-                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('isLoggedIn', false); // Update login status
-                // Navigate to the Login page
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isLoggedIn', false);
                 Navigator.pushReplacementNamed(context, 'loading');
               },
               child: const Text('Log Out'),
@@ -99,6 +149,15 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       },
     );
+  }
+
+  Future<void> _pickImage() async {
+    // Pick an image from gallery or camera
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      File image = File(pickedFile.path);
+      await _updateProfilePicture(image);
+    }
   }
 
   @override
@@ -125,11 +184,13 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Column(
                 children: [
-                  // Circle Avatar for Profile Picture (Removed Upload Option)
-                  const CircleAvatar(
+                  // Circle Avatar for Profile Picture (using CID from Firestore)
+                  CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.grey,
-                    backgroundImage: AssetImage('assets/images/profile_placeholder1.png'),
+                    backgroundImage: profilePicUrl.isNotEmpty
+                        ? NetworkImage('https://gateway.pinata.cloud/ipfs/$profilePicUrl')
+                        : const AssetImage('assets/images/profile_placeholder1.png') as ImageProvider,
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -144,6 +205,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     onPressed: _showEditUsernameDialog,
                     child: const Text(
                       'Edit Username',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  // Button to Change Profile Picture
+                  TextButton(
+                    onPressed: _pickImage,
+                    child: const Text(
+                      'Change Profile Picture',
                       style: TextStyle(
                         color: Colors.white70,
                         decoration: TextDecoration.underline,

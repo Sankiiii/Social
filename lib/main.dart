@@ -10,6 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+class ApiKeys {
+  static const String pinataApiKey = '2dfc4e3fec850909b6e1';
+  static const String pinataApiSecrectKey = '3a9b9b71f1d65bf68349049b5316af65a7f48642b281edb9f2aaf7672402080c';
+
+  // You can add other keys here as needed
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
