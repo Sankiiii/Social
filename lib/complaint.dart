@@ -62,7 +62,6 @@ class _MyComplaintsState extends State<MyComplaints> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       backgroundColor: const Color(0xFFFEEAE6),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: fetchComplaints(),
@@ -112,17 +111,13 @@ class _MyComplaintsState extends State<MyComplaints> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow(Icons.location_on, 'Address',
-                          complaint['address']),
+                      _buildDetailRow(Icons.location_on, 'Address', complaint['address']),
                       const SizedBox(height: 10),
-                      _buildDetailRow(
-                          Icons.label, 'Type', complaint['complaintType']),
+                      _buildDetailRow(Icons.label, 'Type', complaint['complaintType']),
                       const SizedBox(height: 10),
-                      _buildDetailRow(Icons.label_important, 'Sub-Type',
-                          complaint['complaintSubType']), // Show Sub-Type here
+                      _buildDetailRow(Icons.label_important, 'Sub-Type', complaint['complaintSubType']),
                       const SizedBox(height: 10),
-                      _buildDetailRow(Icons.description, 'Description',
-                          complaint['complaintDescription']),
+                      _buildDetailRow(Icons.description, 'Description', complaint['complaintDescription']),
                       const SizedBox(height: 10),
                       _buildStatusRow(complaint['status']),
                       const SizedBox(height: 10),
@@ -130,10 +125,38 @@ class _MyComplaintsState extends State<MyComplaints> {
                         Icons.timer,
                         'Timestamp',
                         complaint['timestamp'] != null
-                            ? DateFormat('yyyy-MM-dd – kk:mm')
-                                .format(complaint['timestamp'].toDate())
+                            ? DateFormat('yyyy-MM-dd – kk:mm').format(complaint['timestamp'].toDate())
                             : 'Not available',
                       ),
+                      const SizedBox(height: 15),
+                      // Display the image from IPFS
+                      complaint['imageCID'] != null
+                          ? Image.network(
+                              'https://ipfs.io/ipfs/${complaint['imageCID']}',
+                              fit: BoxFit.cover,
+                              height: 200, // Adjust height as needed
+                              width: double.infinity,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) {
+                                  return child;
+                                } else {
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              (loadingProgress.expectedTotalBytes ?? 1)
+                                          : null,
+                                    ),
+                                  );
+                                }
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(Icons.error, color: Colors.red),
+                                );
+                              },
+                            )
+                          : const SizedBox.shrink(), // If no image CID, show nothing
                       const SizedBox(height: 15),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -146,14 +169,14 @@ class _MyComplaintsState extends State<MyComplaints> {
                               backgroundColor: Colors.orange,
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8), // Slightly rounded corners
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              elevation: 4, // Adds a shadow for better aesthetics
+                              elevation: 4,
                             ),
                             child: const Text(
                               'Cancel',
                               style: TextStyle(
-                                fontSize: 16, // Slightly larger font
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -161,7 +184,6 @@ class _MyComplaintsState extends State<MyComplaints> {
                           ElevatedButton(
                             onPressed: () {
                               deleteComplaint(complaint['id'], index);
-                              // Remove the complaint from the list after deletion
                               complaints.removeAt(index);
                               setState(() {});
                             },
@@ -169,14 +191,14 @@ class _MyComplaintsState extends State<MyComplaints> {
                               backgroundColor: Colors.red,
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8), // Slightly rounded corners
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              elevation: 4, // Adds a shadow for better aesthetics
+                              elevation: 4,
                             ),
                             child: const Text(
                               'Delete',
                               style: TextStyle(
-                                fontSize: 16, // Slightly larger font
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -231,7 +253,7 @@ class _MyComplaintsState extends State<MyComplaints> {
                            ? Colors.red
                            : status == 'In Progress'
                                ? Colors.blue
-                               : Colors.yellow, // Blue for In Progress
+                               : Colors.yellow,
           ),
         ),
       ],

@@ -5,6 +5,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:mime_type/mime_type.dart';
+import 'dart:convert';
 
 class RauseComplaint extends StatefulWidget {
   const RauseComplaint({super.key});
@@ -25,12 +28,32 @@ class _RauseComplaintState extends State<RauseComplaint> {
   bool isLoading = false;
   String? currentAddress;
 
+  final String pinataApiKey = '2dfc4e3fec850909b6e1';
+  final String pinataApiSecret = '3a9b9b71f1d65bf68349049b5316af65a7f48642b281edb9f2aaf7672402080c';
+  
   @override
   void dispose() {
     _complaintController.dispose();
     _landmarkController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<String> uploadImageToPinata(File imageFile) async {
+    final uri = Uri.parse('https://api.pinata.cloud/pinning/pinFileToIPFS');
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['pinata_api_key'] = pinataApiKey
+      ..headers['pinata_secret_api_key'] = pinataApiSecret
+      ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      final responseData = await http.Response.fromStream(response);
+      final jsonResponse = jsonDecode(responseData.body);
+      return jsonResponse['IpfsHash']; // This is the CID of the image
+    } else {
+      throw Exception('Failed to upload image to Pinata');
+    }
   }
 
   Future<void> _submitForm() async {
@@ -83,13 +106,17 @@ class _RauseComplaintState extends State<RauseComplaint> {
           .collection('users/$userId/complaints')
           .add(complaintData);
 
-      // Add images to Firestore
+      // Upload images to Pinata and store the CID in Firestore
       for (var file in files) {
+        final imageFile = File(file.path);
+        final cid = await uploadImageToPinata(imageFile);
+
+        // Add the CID of the image to Firestore
         await FirebaseFirestore.instance
             .collection('users/$userId/complaints')
             .doc(complaintDoc.id)
             .collection('images')
-            .add({'path': file.path});
+            .add({'cid': cid});
       }
 
       // Clear form after submission
@@ -180,23 +207,18 @@ class _RauseComplaintState extends State<RauseComplaint> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-                    appBar: AppBar(
-                         backgroundColor: const Color(0xFFFEDBD0),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFEDBD0),
         title: const Text(
           'Raise Complaint',
           style: TextStyle(
             fontFamily: 'Amaranth',
             fontWeight: FontWeight.bold,
             fontSize: 24,
-            color: Color(0xFF442C2E),)
-
-        )
-
-
-
-
-                  // Add a shadow for better aesthetics
-            ),
+            color: Color(0xFF442C2E),
+          ),
+        ),
+      ),
       backgroundColor: const Color(0xFFFEEAE6),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -246,8 +268,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Center(
-                        child: Text('Upload Image',
-                            style: TextStyle(fontSize: 18)),
+                        child: Text('Upload Image', style: TextStyle(fontSize: 18)),
                       ),
                     ),
                   ),
@@ -375,26 +396,9 @@ class _RauseComplaintState extends State<RauseComplaint> {
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: isLoading ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF442C2E), // Button color
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20), // Add spacing
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10), // Slightly rounded corners
-                          ),
-                          elevation: 5, // Adds a shadow for better aesthetics
-                        ),
                         child: isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white, // Spinner color
-                              )
-                            : const Text(
-                                'Submit Complaint',
-                                style: TextStyle(
-                                  color: Colors.white, // Text color
-                                  fontSize: 16, // Larger, readable font
-                                  fontWeight: FontWeight.bold, // Emphasize the text
-                                ),
-                              ),
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Submit'),
                       ),
                     ],
                   ),
