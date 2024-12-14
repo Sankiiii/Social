@@ -14,12 +14,41 @@ class _NotificationPageState extends State<NotificationPage> {
   final User? user = FirebaseAuth.instance.currentUser;
 
   @override
+  void initState() {
+    super.initState();
+    if (user != null) {
+      _setupNotificationListener(user!.uid);
+    }
+  }
+
+  void _setupNotificationListener(String userId) {
+    _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('complaints')
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.modified) {
+          var complaintData = change.doc.data();
+          if (complaintData != null) {
+            String status = complaintData['status'] ?? '';
+            if (status == 'In Progress' || status == 'Succeeded') {
+              _incrementNotificationCount(userId);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text("Complaint Status"),
-          backgroundColor: const Color(0xFFFEDBD0),// const Color()
+          backgroundColor: const Color(0xFFFEDBD0),
         ),
         body: const Center(child: Text('Please log in to see your complaints.')),
       );
@@ -32,6 +61,7 @@ class _NotificationPageState extends State<NotificationPage> {
         title: const Text("Complaint Status"),
         backgroundColor: const Color(0xFFFDEBE7),
         actions: [
+          _buildNotificationBadge(userId),
           IconButton(
             icon: const Icon(Icons.delete_forever),
             onPressed: () {
@@ -45,7 +75,7 @@ class _NotificationPageState extends State<NotificationPage> {
             .collection('users')
             .doc(userId)
             .collection('complaints')
-            .where('status', whereIn: ['In Progress', 'Succeeded']) // Fetch both "In Progress" and "Succeeded"
+            .where('status', whereIn: ['In Progress', 'Succeeded'])
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -76,12 +106,13 @@ class _NotificationPageState extends State<NotificationPage> {
               String timeString =
                   "${complaintTime.hour}:${complaintTime.minute.toString().padLeft(2, '0')}";
 
-              // Determine the color based on status
               Color cardColor = status == 'Succeeded'
                   ? Colors.green
                   : (status == 'In Progress' ? Colors.blue : Colors.grey);
-              IconData icon = status == 'Succeeded' ? Icons.check_circle_outline : Icons.build;
-              Color iconColor = status == 'Succeeded' ? Colors.green : Colors.blue;
+              IconData icon =
+                  status == 'Succeeded' ? Icons.check_circle_outline : Icons.build;
+              Color iconColor =
+                  status == 'Succeeded' ? Colors.green : Colors.blue;
 
               return Dismissible(
                 key: Key(docId),
@@ -97,7 +128,7 @@ class _NotificationPageState extends State<NotificationPage> {
                 ),
                 child: Card(
                   margin: const EdgeInsets.all(12.0),
-                  color: cardColor.withOpacity(0.5), // Adjust opacity for visual appeal
+                  color: cardColor.withOpacity(0.5),
                   elevation: 6,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -162,18 +193,63 @@ class _NotificationPageState extends State<NotificationPage> {
     );
   }
 
+  Widget _buildNotificationBadge(String userId) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore.collection('users').doc(userId).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.data() == null) {
+          return const SizedBox();
+        }
+
+        int notificationCount = snapshot.data!.get('notificationCount') ?? 0;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.notifications),
+            if (notificationCount > 0)
+              Positioned(
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    '$notificationCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   void _removeNotification(String userId, String docId) {
-    // Remove the specific notification from Firestore
     _firestore
         .collection('users')
         .doc(userId)
         .collection('complaints')
         .doc(docId)
-        .delete();
+        .delete()
+        .then((_) => _decrementNotificationCount(userId))
+        .catchError((error) {
+          debugPrint('Error removing notification: $error');
+        });
   }
 
   void _clearAllNotifications(String userId) {
-    // Remove all notifications with the given statuses from Firestore
     _firestore
         .collection('users')
         .doc(userId)
@@ -184,6 +260,25 @@ class _NotificationPageState extends State<NotificationPage> {
       for (var doc in snapshot.docs) {
         doc.reference.delete();
       }
+      _firestore.collection('users').doc(userId).update({'notificationCount': 0}).catchError((error) {
+        debugPrint('Error clearing notifications: $error');
+      });
+    });
+  }
+
+  void _incrementNotificationCount(String userId) {
+    _firestore.collection('users').doc(userId).update({
+      'notificationCount': FieldValue.increment(1),
+    }).catchError((error) {
+      debugPrint('Error incrementing notification count: $error');
+    });
+  }
+
+  void _decrementNotificationCount(String userId) {
+    _firestore.collection('users').doc(userId).update({
+      'notificationCount': FieldValue.increment(-1),
+    }).catchError((error) {
+      debugPrint('Error decrementing notification count: $error');
     });
   }
 }
