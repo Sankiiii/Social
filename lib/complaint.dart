@@ -59,55 +59,154 @@ class _MyComplaintsState extends State<MyComplaints> {
     }
   }
 
+  void _showImageDialog(BuildContext context, String imageCID) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  spreadRadius: 5,
+                  blurRadius: 15,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.network(
+                'https://ipfs.io/ipfs/$imageCID',
+                fit: BoxFit.contain,
+                width: double.infinity,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              (loadingProgress.expectedTotalBytes ?? 1)
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, color: Colors.white, size: 50),
+                        Text(
+                          'Failed to load image',
+                          style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'My Complaints',
+          style: TextStyle(
+            fontFamily: 'Amaranth',
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF442C2E),
+          ),
+        ),
+        backgroundColor: const Color(0xFFFEEAE6),
+        elevation: 0,
+        centerTitle: true,
+      ),
       backgroundColor: const Color(0xFFFEEAE6),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: fetchComplaints(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF442C2E)),
+              ),
+            );
           }
           if (snapshot.hasError) {
-            return const Center(
+            return Center(
               child: Text(
                 'An error occurred while fetching complaints.',
                 style: TextStyle(
                   fontFamily: 'Amaranth',
                   fontSize: 18,
-                  color: Color(0xFF442C2E),
+                  color: Colors.red.shade700,
                 ),
               ),
             );
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text(
-                'No complaints found for your account.',
-                style: TextStyle(
-                  fontFamily: 'Amaranth',
-                  fontSize: 18,
-                  color: Color(0xFF442C2E),
-                ),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.report_off,
+                    size: 80,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'No complaints found for your account.',
+                    style: TextStyle(
+                      fontFamily: 'Amaranth',
+                      fontSize: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             );
           }
 
           final complaints = snapshot.data!;
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             itemCount: complaints.length,
             itemBuilder: (context, index) {
               final complaint = complaints[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                elevation: 8,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 15),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white,
+                      Colors.grey.shade50,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade300,
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(15.0),
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -128,18 +227,22 @@ class _MyComplaintsState extends State<MyComplaints> {
                             ? DateFormat('yyyy-MM-dd – kk:mm').format(complaint['timestamp'].toDate())
                             : 'Not available',
                       ),
-                      const SizedBox(height: 15),
-                      // Display the image from IPFS
-                      complaint['imageCID'] != null
-                          ? Image.network(
-                              'https://ipfs.io/ipfs/${complaint['imageCID']}',
-                              fit: BoxFit.cover,
-                              height: 200, // Adjust height as needed
-                              width: double.infinity,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) {
-                                  return child;
-                                } else {
+                      
+                      // Image Preview Section
+                      if (complaint['imageCID'] != null) ...[
+                        const SizedBox(height: 15),
+                        GestureDetector(
+                          onTap: () => _showImageDialog(context, complaint['imageCID']),
+                          child: Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Image.network(
+                                'https://ipfs.io/ipfs/${complaint['imageCID']}',
+                                fit: BoxFit.cover,
+                                height: 150,
+                                width: double.infinity,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
                                   return Center(
                                     child: CircularProgressIndicator(
                                       value: loadingProgress.expectedTotalBytes != null
@@ -148,60 +251,45 @@ class _MyComplaintsState extends State<MyComplaints> {
                                           : null,
                                     ),
                                   );
-                                }
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Center(
-                                  child: Icon(Icons.error, color: Colors.red),
-                                );
-                              },
-                            )
-                          : const SizedBox.shrink(), // If no image CID, show nothing
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    height: 150,
+                                    color: Colors.grey.shade200,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        size: 50,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      
                       const SizedBox(height: 15),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          ElevatedButton(
+                          _buildActionButton(
+                            text: 'Cancel',
+                            color: Colors.orange,
                             onPressed: () {
                               updateComplaintStatus(complaint['id'], 'Canceled');
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 4,
-                            ),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ),
-                          ElevatedButton(
+                          _buildActionButton(
+                            text: 'Delete',
+                            color: Colors.red,
                             onPressed: () {
                               deleteComplaint(complaint['id'], index);
                               complaints.removeAt(index);
                               setState(() {});
                             },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 4,
-                            ),
-                            child: const Text(
-                              'Delete',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -257,6 +345,32 @@ class _MyComplaintsState extends State<MyComplaints> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required String text,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        elevation: 5,
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }

@@ -1,284 +1,444 @@
-import 'package:design_model/complaint.dart';
-import 'package:design_model/raise_complaint.dart';
-import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart'; // Import for Carousel
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart'; // Import for SystemNavigator
+import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Model class for Complaint data
+// Complaint model class
 class Complaint {
   final String title;
   final String status;
   final String imagePath;
+  final Color statusColor;
 
   Complaint({
     required this.title,
     required this.status,
     required this.imagePath,
+    required this.statusColor,
   });
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+// Home Screen StatefulWidget
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // Sample images for the slider
-    final List<String> imageList = [
-      'assets/images/image1.jpg', // Replace with your image paths
-      'assets/images/image2.jpg',
-      'assets/images/image3.jpg',
-      'assets/images/image4.jpg', // Replace with your image paths
-      'assets/images/image5.jpg',
-      'assets/images/image6.jpg'
-    ];
+  _HomeScreenState createState() => _HomeScreenState();
+}
 
-    // Sample complaints data
-    final List<Complaint> complaints = [
-      Complaint(
-        title: 'Garbage Dumping',
-        status: 'Pending ',
-        imagePath: 'assets/images/hot1.jpeg',
-      ),
-      Complaint(
-        title: 'Overflowing Bins',
-        status: 'In Progress',
-        imagePath: 'assets/images/hot2.jpeg',
-      ),
-      Complaint(
-        title: 'Uncollected Waste',
-        status: 'Hot Complaint',
-        imagePath: 'assets/images/hot3.jpeg',
-      ),
-      Complaint(
-        title: 'Garbage Dumping',
-        status: 'Pending',
-        imagePath: 'assets/images/hot4.jpeg',
-      ),
-      Complaint(
-        title: 'Overflowing Bins',
-        status: 'In Progress',
-        imagePath: 'assets/images/hot5.jpeg',
-      ),
-    ];
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentCarouselIndex = 0;
+  int _notificationCount = 0;
 
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          // Image Slider
-          CarouselSlider(
-            items: imageList.map((item) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: Image.asset(
-                  item,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                ),
-              );
-            }).toList(),
-            options: CarouselOptions(
-              height: 200,
-              autoPlay: true,
-              enlargeCenterPage: true,
-              aspectRatio: 16 / 9,
-              viewportFraction: 0.8,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Welcome to Your Dashboard!',
-            style: TextStyle(
-              fontFamily: 'Amaranth',
-              fontSize: 24,
-              color: const Color(0xFF442C2E),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Hot Complaints Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEDBD0),
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Hot Complaints',
-                  style: TextStyle(
-                    fontFamily: 'Amaranth',
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF442C2E),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: complaints.length, // Using valid complaint data
-                  itemBuilder: (context, index) {
-                    return Card(
-                      elevation: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            complaints[index].imagePath, // Using valid image path
-                            fit: BoxFit.cover,
-                            width: 50,
-                            height: 50,
-                          ),
-                        ),
-                        title: Text(complaints[index].title),
-                        subtitle: Text('Status: ${complaints[index].status}'),
-                        trailing: Icon(
-                          CupertinoIcons.exclamationmark_triangle,
-                          color: Colors.red,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotificationCount();
   }
-}
 
-class Home extends StatefulWidget {
-  const Home({super.key});
+  // Method to fetch notification count from Firestore
+  void _fetchNotificationCount() async {
+    try {
+      // Replace 'userId' with actual user authentication logic
+      final userDoc = FirebaseFirestore.instance.collection('users').doc('userId');
+      final docSnapshot = await userDoc.get();
 
-  @override
-  State<Home> createState() => _HomeState();
-}
+      if (docSnapshot.exists) {
+        setState(() {
+          _notificationCount = docSnapshot.data()?['notificationCount'] ?? 0;
+        });
+      }
+    } catch (e) {
+      print('Error fetching notification count: $e');
+    }
+  }
 
-class _HomeState extends State<Home> {
-  int _selectedIndex = 0;
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    // Replace with your actual RaiseComplaint screen
-    const RauseComplaint(),
-    // Replace with your actual MyComplaints screen
-    const MyComplaints(),
+  // Image list for carousel
+  final List<String> imageList = [
+    'assets/images/image1.jpg',
+    'assets/images/image2.jpg',
+    'assets/images/image3.jpg',
+    'assets/images/image4.jpg',
+    'assets/images/image5.jpg',
+    'assets/images/image6.jpg'
   ];
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  Future<bool> _onWillPop() async {
-    final exit = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit App'),
-        content: const Text('Are you sure you want to exit the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () {
-              SystemNavigator.pop(); // Close the app
-            },
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    );
-    return exit ?? false;
-  }
+  // Complaints list
+  final List<Complaint> complaints = [
+    Complaint(
+      title: 'Garbage Dumping',
+      status: 'Pending',
+      imagePath: 'assets/images/hot1.jpeg',
+      statusColor: Colors.orange,
+    ),
+    Complaint(
+      title: 'Overflowing Bins',
+      status: 'In Progress',
+      imagePath: 'assets/images/hot2.jpeg',
+      statusColor: Colors.blue,
+    ),
+    Complaint(
+      title: 'Uncollected Waste',
+      status: 'Hot Complaint',
+      imagePath: 'assets/images/hot3.jpeg',
+      statusColor: Colors.red,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFEEAE6),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFEDBD0), // Set the background color of the app bar
-        title: Text(
-          'Home',
-          style: TextStyle(
-            fontFamily: 'Amaranth', // Set the font family to Amaranth
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-            color: const Color(0xFF442C2E), // Font color set to #442C2E
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: CustomScrollView(
+        slivers: [
+          // App Bar
+          SliverAppBar(
+            expandedHeight: 250.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                'City Complaint Portal',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 10.0,
+                      color: Colors.black45,
+                      offset: Offset(2.0, 2.0),
+                    ),
+                  ],
+                ),
+              ),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // City background image
+                  Image.asset(
+                    'assets/images/city_background.jpg',
+                    fit: BoxFit.cover,
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              // Notification Icon with Badge
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: Colors.white,size: 30,),
+                    onPressed: () {
+                      Navigator.pushNamed(context, 'notification');
+                    },
+                  ),
+                  if (_notificationCount > 0)
+                    Positioned(
+                      left: 20,
+                      top: 5,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$_notificationCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                    icon: const Icon(Icons.person, color: Colors.white),
+                    onPressed: () {
+                      Navigator.pushNamed(context, 'profile');
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.home, color: Color(0xFF442C2E),size: 30.0), // Home icon with custom color
-          onPressed: () {
-            setState(() {
-              _selectedIndex = 0; // Set to home tab when pressed
-            });
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.bell, color: Color(0xFF442C2E),size: 30.0), // Bell icon with custom color
-            onPressed: () {
-              Navigator.pushNamed(context,'notification');
-              print('Notification button pressed');
-            },
-          ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.profile_circled, color: Color(0xFF442C2E),size: 30.0), // Profile icon with custom color
-            onPressed: () {
-              Navigator.pushNamed(context,'profile');
-              print('Profile button pressed');
-            },
-          ),
-        ],
-      ),
-      body: WillPopScope(
-        onWillPop: _onWillPop,
-        child: _pages[_selectedIndex],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFFFEDBD0),
-        selectedItemColor: const Color(0xFF442C2E),
-        unselectedItemColor: const Color(0xFF8D6E63),
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.add),
-            label: 'Raise',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.exclamationmark_triangle),
-            label: 'Complaints',
+          // Body Content
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Carousel Slider
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: CarouselSlider.builder(
+                    itemCount: imageList.length,
+                    options: CarouselOptions(
+                      height: 200,
+                      autoPlay: true,
+                      enlargeCenterPage: true,
+                      viewportFraction: 0.85,
+                      autoPlayCurve: Curves.fastOutSlowIn,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          _currentCarouselIndex = index;
+                        });
+                      },
+                    ),
+                    itemBuilder: (context, index, realIndex) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.asset(
+                                imageList[index],
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.black.withOpacity(0.7),
+                                      ],
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                  child: Text(
+                                    'City Update ${index + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Carousel Indicator
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: imageList.map((url) {
+                      int index = imageList.indexOf(url);
+                      return Container(
+                        width: 10.0,
+                        height: 10.0,
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentCarouselIndex == index
+                              ? Colors.deepPurple
+                              : Colors.grey,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                // Quick Action Buttons
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Quick Actions',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildQuickActionButton(
+                              icon: CupertinoIcons.add,
+                              label: 'Raise Complaint',
+                              onTap: () {
+                                Navigator.pushNamed(context, 'raise');
+                              },
+                            ),
+                            const SizedBox(width: 16),
+                            _buildQuickActionButton(
+                              icon: CupertinoIcons.list_bullet,
+                              label: 'My Complaints',
+                              onTap: () {
+                                Navigator.pushNamed(context, 'complaints');
+                              },
+                            ),
+                            const SizedBox(width: 16),
+                            _buildQuickActionButton(
+                              icon: CupertinoIcons.bell,
+                              label: 'Notifications',
+                              onTap: () {
+                                Navigator.pushNamed(context, 'notification');
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Hot Complaints Section
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Hot Complaints',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ...complaints.map((complaint) => _buildComplaintCard(complaint)).toList(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-void main() {
-  runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const Home(),
-    ),
-  );
+  // Quick Action Button Widget
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Colors.deepPurple,
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.deepPurple,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Complaint Card Widget
+  Widget _buildComplaintCard(Complaint complaint) {
+    return Card(
+      elevation: 5,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(10),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.asset(
+            complaint.imagePath,
+            width: 70,
+            height: 70,
+            fit: BoxFit.cover,
+          ),
+        ),
+        title: Text(
+          complaint.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple,
+          ),
+        ),
+        subtitle: Text(
+          complaint.status,
+          style: TextStyle(
+            color: complaint.statusColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: complaint.statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            'View',
+            style: TextStyle(
+              color: complaint.statusColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
