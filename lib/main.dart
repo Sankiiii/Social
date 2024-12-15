@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:design_model/aboutus.dart';
+import 'package:design_model/invite_frined.dart';
 import 'package:design_model/loading.dart';
 import 'package:design_model/login.dart';
 import 'package:design_model/register.dart';
@@ -9,6 +11,7 @@ import 'package:design_model/raise_complaint.dart';
 import 'package:design_model/complaint.dart';
 import 'package:design_model/notification.dart';
 import 'package:design_model/profile.dart';
+import 'package:design_model/support.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime/onnxruntime.dart';
@@ -183,6 +186,9 @@ class _MyAppState extends State<MyApp> {
         'complaints': (context) => MyComplaints(),
         'profile': (context) => ProfilePage(),
         'notification': (context) => NotificationPage(),
+        'support' : (context) => SupportPage(),
+        'invite_friend' : (context) => InviteFriendsPage(),
+        'about_us' : (context) => AboutUsPage()
       },
     );
   }

@@ -247,14 +247,14 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: const InputDecoration(
               hintText: 'Enter new username',
               focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Color(0xFF442C2E)),
+                borderSide: BorderSide(color: Colors.deepPurple),
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF442C2E))),
+              child: const Text('Cancel', style: TextStyle(color: Colors.deepPurple)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -262,7 +262,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF442C2E),
+                backgroundColor: Colors.deepPurple,
               ),
               child: const Text('Save'),
             ),
@@ -282,7 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF442C2E))),
+              child: const Text('Cancel', style: TextStyle(color: Colors.deepPurple)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -293,7 +293,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.pushReplacementNamed(context, 'loading');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF442C2E),
+                backgroundColor: Colors.deepPurple,
               ),
               child: const Text('Log Out'),
             ),
@@ -315,20 +315,20 @@ class _ProfilePageState extends State<ProfilePage> {
             fontWeight: FontWeight.bold
           )
         ),
-        backgroundColor: const Color(0xFF442C2E),
+        backgroundColor: Colors.deepPurple,
         centerTitle: true,
         elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: _initializeProfileData,
-        color: const Color(0xFF442C2E),
+        color:  Colors.deepPurple,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF442C2E),
+                  color:Colors.deepPurple,
                   borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(30),
                   ),
@@ -427,7 +427,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ]
             ),
             child: IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF442C2E)),
+              icon: const Icon(Icons.edit, color: Colors.deepPurple),
               onPressed: _pickImage,
               tooltip: 'Change Profile Picture',
             ),
@@ -447,7 +447,9 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Invite Friends',
             onTap: () {
               // Implement invite friends functionality
-              _showErrorSnackBar('Feature coming soon!');
+                                      Navigator.pushNamed(context, 'invite_friend');
+
+              // _showErrorSnackBar('Feature coming soon!');
             },
           ),
           const SizedBox(height: 10),
@@ -456,7 +458,9 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'About Us',
             onTap: () {
               // Implement about us page
-              _showErrorSnackBar('Feature coming soon!');
+                                          Navigator.pushNamed(context, 'about_us');
+
+              // _showErrorSnackBar('Feature coming soon!');
             },
           ),
           const SizedBox(height: 10),
@@ -465,7 +469,8 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Support',
             onTap: () {
               // Implement support page
-              _showErrorSnackBar('Feature coming soon!');
+                            Navigator.pushNamed(context, 'support');
+              // _showErrorSnackBar('Feature coming soon!');
             },
           ),
           const SizedBox(height: 10),
@@ -508,14 +513,14 @@ class ProfileOptionCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
             child: Row(
               children: [
-                Icon(icon, color: const Color(0xFF442C2E), size: 30),
+                Icon(icon, color: Colors.deepPurple, size: 30),
                 const SizedBox(width: 20),
                 Text(
                   title,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF442C2E),
+                    color: Colors.deepPurple,
                   ),
                 ),
                 const Spacer(),
@@ -541,7 +546,7 @@ void showLoadingDialog(BuildContext context) {
     builder: (BuildContext context) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF442C2E)),
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
         ),
       );
     },
@@ -569,7 +574,7 @@ class CustomAlertDialog extends StatelessWidget {
       title: Text(
         title,
         style: const TextStyle(
-          color: Color(0xFF442C2E),
+          color: Colors.deepPurple,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -592,7 +597,7 @@ class CustomAlertDialog extends StatelessWidget {
             },
             child: const Text(
               'Cancel',
-              style: TextStyle(color: Color(0xFF442C2E)),
+              style: TextStyle(color: Colors.deepPurple),
             ),
           ),
         ElevatedButton(
@@ -601,7 +606,7 @@ class CustomAlertDialog extends StatelessWidget {
             onConfirm?.call();
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF442C2E),
+            backgroundColor: Colors.deepPurple,
           ),
           child: const Text('Confirm'),
         ),

@@ -116,8 +116,8 @@ class _NotificationPageState extends State<NotificationPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
-                  // TODO: Implement login navigation
-                  // Navigator.of(context).pushReplacement(...)
+                  Navigator.pushNamed(context, 'raise');
+
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.pink,
@@ -275,7 +275,7 @@ class _NotificationPageState extends State<NotificationPage> {
         children: [
           const Icon(
             Icons.notifications_off,
-            color: Colors.grey,
+            color: Colors.black,
             size: 80,
           ),
           const SizedBox(height: 20),
@@ -293,19 +293,18 @@ class _NotificationPageState extends State<NotificationPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: Colors.black45,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
-              // TODO: Navigate to complaint submission page
-              // Navigator.of(context).push(...)
+              Navigator.pushNamed(context, 'raise');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurple,
             ),
-            child: const Text('Submit a Complaint'),
+            child: const Text('Raise Comaplaint'),
           ),
         ],
       ),
@@ -386,7 +385,7 @@ class _NotificationPageState extends State<NotificationPage> {
                     "Time: $formattedTime",
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.grey,
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -434,7 +433,7 @@ class _NotificationPageState extends State<NotificationPage> {
       case 'In Progress':
         return Colors.blue;
       default:
-        return Colors.grey;
+        return Colors.white;
     }
   }
 
@@ -480,7 +479,7 @@ return Stack(
 
  children: [
 
- const Icon(Icons.notifications, size: 30),
+ const Icon(Icons.notifications, size: 30,color: Colors.white),
 
 if (notificationCount > 0)
 

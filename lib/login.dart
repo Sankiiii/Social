@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Import for inputFormatters
+import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class MyLogin extends StatefulWidget {
   const MyLogin({super.key});
@@ -12,11 +13,164 @@ class MyLogin extends StatefulWidget {
 class _MyLoginState extends State<MyLogin> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;  // For showing a loading indicator
-  bool _passwordVisible = false;  // Toggle password visibility
-  bool isLoggedIn = false;  // To track if the user is logged in
+  final TextEditingController _resetEmailController = TextEditingController();
+
+  bool _isLoading = false;
+  bool _passwordVisible = false;
+  bool isLoggedIn = false;
   final _formKey = GlobalKey<FormState>();
-  String? _errorMessage; // To store error messages
+  String? _errorMessage;
+
+  // Check internet connectivity
+  Future<bool> _checkInternetConnectivity() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    return connectivityResult != ConnectivityResult.none;
+  }
+
+  // Show error dialog
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Okay'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          )
+        ],
+      ),
+    );
+  }
+
+  // Password Reset Dialog
+  void _showPasswordResetDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: TextFormField(
+          controller: _resetEmailController,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            hintText: 'Enter your email',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter your email';
+            }
+            final emailRegex = 
+              RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+            if (!emailRegex.hasMatch(value)) {
+              return 'Please enter a valid email address';
+            }
+            return null;
+          },
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _resetEmailController.clear();
+            },
+          ),
+          ElevatedButton(
+            child: const Text('Reset'),
+            onPressed: () async {
+              if (_resetEmailController.text.isNotEmpty) {
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                    email: _resetEmailController.text.trim(),
+                  );
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password reset email sent'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  Navigator.of(ctx).pop();
+                  _showErrorDialog(e.message ?? 'An error occurred');
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Login Method with Comprehensive Error Handling
+  Future<void> _loginUser() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    // Check Internet Connectivity First
+    bool hasInternet = await _checkInternetConnectivity();
+    if (!hasInternet) {
+      setState(() {
+        _errorMessage = 'No internet connection. Please check your network.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Validate Form
+    if (_formKey.currentState?.validate() ?? false) {
+      try {
+        final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _usernameController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (credential.user?.email != null) {
+          setState(() {
+            isLoggedIn = true;
+          });
+          Navigator.pushNamed(context, 'home');
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage;
+        switch (e.code) {
+          case 'user-not-found':
+            errorMessage = 'No user found with this email.';
+            break;
+          case 'wrong-password':
+            errorMessage = 'Incorrect password. Please try again.';
+            break;
+          case 'user-disabled':
+            errorMessage = 'This account has been disabled.';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Invalid email address.';
+            break;
+          default:
+            errorMessage = 'Login failed. Please try again.';
+        }
+        setState(() {
+          _errorMessage = errorMessage;
+        });
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.';
+        });
+      }
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +200,7 @@ class _MyLoginState extends State<MyLogin> {
               ),
             ),
             const SizedBox(height: 10),
-            if (_errorMessage != null) // Display error message if it exists
+            if (_errorMessage != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Container(
@@ -100,7 +254,7 @@ class _MyLoginState extends State<MyLogin> {
                       inputFormatters: [
                         LengthLimitingTextInputFormatter(50),
                       ],
-                      autofocus: true, // Autofocus on the email field
+                      autofocus: true,
                       decoration: InputDecoration(
                         labelText: 'Email',
                         hintText: 'Enter your email',
@@ -124,9 +278,9 @@ class _MyLoginState extends State<MyLogin> {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: !_passwordVisible,  // Toggle visibility
+                      obscureText: !_passwordVisible,
                       inputFormatters: [
-                        LengthLimitingTextInputFormatter(6),
+                        LengthLimitingTextInputFormatter(50),
                       ],
                       decoration: InputDecoration(
                         labelText: 'Password',
@@ -156,6 +310,19 @@ class _MyLoginState extends State<MyLogin> {
                         return null;
                       },
                     ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _showPasswordResetDialog,
+                        child: const Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: Color(0xFF442C2E),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -164,40 +331,7 @@ class _MyLoginState extends State<MyLogin> {
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.8,
               child: ElevatedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () async {
-                        setState(() {
-                          _isLoading = true;
-                          _errorMessage = null; // Clear previous error message
-                        });
-
-                        if (_formKey.currentState?.validate() ?? false) {
-                          try {
-                            final credential =
-                                await FirebaseAuth.instance.signInWithEmailAndPassword(
-                              email: _usernameController.text.trim(),
-                              password: _passwordController.text,
-                            );
-
-                            if (credential.user?.email != null) {
-                              setState(() {
-                                isLoggedIn = true; // Set isLoggedIn to true after successful login
-                              });
-                              Navigator.pushNamed(context, 'home');
-                            }
-                          } catch (e) {
-                            setState(() {
-                              _errorMessage =
-                                  'Invalid email or password. Please try again.';
-                            });
-                          }
-                        }
-
-                        setState(() {
-                          _isLoading = false; // Reset loading state
-                        });
-                      },
+                onPressed: _isLoading ? null : _loginUser,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
@@ -219,7 +353,7 @@ class _MyLoginState extends State<MyLogin> {
             const SizedBox(height: 20),
             TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, 'register'); // Navigate to the signup screen
+                Navigator.pushNamed(context, 'register');
               },
               child: const Text(
                 "Don't have an account? Sign up",
@@ -235,5 +369,13 @@ class _MyLoginState extends State<MyLogin> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _resetEmailController.dispose();
+    super.dispose();
   }
 }

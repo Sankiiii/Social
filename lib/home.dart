@@ -136,36 +136,50 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             actions: [
               // Notification Icon with Badge
-              Stack(
+              Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications, color: Colors.white,size: 30,),
-                    onPressed: () {
-                      Navigator.pushNamed(context, 'notification');
-                    },
-                  ),
-                  if (_notificationCount > 0)
-                    Positioned(
-                      left: 20,
-                      top: 5,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '$_notificationCount',
-                          style: const TextStyle(
+                  Stack(
+                    children: [
+                      Positioned(
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.notifications,
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            size: 30,
                           ),
+                          onPressed: () {
+                            Navigator.pushNamed(context, 'notification');
+                          },
                         ),
                       ),
+                      if (_notificationCount > 0)
+                        Positioned(
+                          left: 10,
+                          top: 5,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '$_notificationCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 30,
                     ),
-                    IconButton(
-                    icon: const Icon(Icons.person, color: Colors.white),
                     onPressed: () {
                       Navigator.pushNamed(context, 'profile');
                     },
@@ -179,6 +193,19 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                                      const SizedBox(height: 16),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Our Results',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                ),
                 // Carousel Slider
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -235,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   padding: const EdgeInsets.all(10),
                                   child: Text(
-                                    'City Update ${index + 1}',
+                                    'Before        After ',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -272,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }).toList(),
                   ),
                 ),
-
+                
                 // Quick Action Buttons
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -321,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
+                
                 // Hot Complaints Section
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -337,7 +364,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      ...complaints.map((complaint) => _buildComplaintCard(complaint)).toList(),
+                      ...complaints
+                          .map((complaint) => _buildComplaintCard(complaint))
+                          .toList(),
                     ],
                   ),
                 ),

@@ -146,7 +146,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
     try {
       final placemarks = await placemarkFromCoordinates(lat, long);
       final place = placemarks[0];
-      return "${place.locality ?? ''}, ${place.subLocality ?? ''}, ${place.thoroughfare ?? ''}, ${place.postalCode ?? ''}".trim();
+      return "${place.locality ?? ''}, ${place.subLocality ?? ''}, ${place.subThoroughfare ?? ''}, ${place.postalCode ?? ''}".trim();
     } catch (e) {
       return 'Unable to fetch precise address';
     }
@@ -224,11 +224,17 @@ class _RauseComplaintState extends State<RauseComplaint> {
       _resetForm();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Complaint Submitted Successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      const SnackBar(
+        content: Text('Complaint Submitted Successfully!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2), // Display duration of the SnackBar
+      ),
+    );
+
+    // Navigate to the other page after the SnackBar is shown
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushNamed(context, 'complaints');
+    });
     } catch (e) {
       _showErrorSnackBar('Error submitting complaint: $e');
     } finally {

@@ -20,6 +20,7 @@ class _MyComplaintsState extends State<MyComplaints> {
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users/${user!.uid}/complaints')
+          .orderBy('timestamp', descending: true)
           .get();
       return querySnapshot.docs.map((doc) {
         return {
@@ -45,73 +46,125 @@ class _MyComplaintsState extends State<MyComplaints> {
     }
   }
 
-  Future<void> deleteComplaint(String id, int index) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('users/${user!.uid}/complaints')
-          .doc(id)
-          .delete();
-      setState(() {
-        // Remove complaint from the list after deletion
-      });
-    } catch (e) {
-      debugPrint("Error deleting complaint: $e");
-    }
-  }
-
-  void _showImageDialog(BuildContext context, String imageCID) {
+  void _showComplaintDetailsDialog(Map<String, dynamic> complaint) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  spreadRadius: 5,
-                  blurRadius: 15,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.network(
-                'https://ipfs.io/ipfs/$imageCID',
-                fit: BoxFit.contain,
-                width: double.infinity,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              (loadingProgress.expectedTotalBytes ?? 1)
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error, color: Colors.white, size: 50),
-                        Text(
-                          'Failed to load image',
-                          style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Complaint Details',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple.shade700,
           ),
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow(Icons.location_on, 'Address', complaint['address']),
+              const SizedBox(height: 10),
+              _buildDetailRow(Icons.label, 'Type', complaint['complaintType']),
+              const SizedBox(height: 10),
+              _buildDetailRow(Icons.label_important, 'Sub-Type', complaint['complaintSubtype']),
+              const SizedBox(height: 10),
+              _buildDetailRow(Icons.description, 'Description', complaint['complaintDescription']),
+              const SizedBox(height: 10),
+              _buildDateTimeRow(complaint['timestamp']),
+              const SizedBox(height: 10),
+              _buildStatusDetailRow(complaint['status']),
+              
+              // Image Preview Section
+              if (complaint['imageCID'] != null) ...[
+                const SizedBox(height: 15),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.network(
+                      'https://ipfs.io/ipfs/${complaint['images']}',
+                      fit: BoxFit.cover,
+                      height: 200,
+                      width: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    (loadingProgress.expectedTotalBytes ?? 1)
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 200,
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (complaint['status'] == 'Pending') 
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showCancelConfirmationDialog(complaint['id']);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.orange,
+              ),
+              child: const Text('Cancel Complaint'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCancelConfirmationDialog(String complaintId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text('Cancel Complaint'),
+        content: const Text('Are you sure you want to cancel this complaint?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () {
+              updateComplaintStatus(complaintId, 'Canceled');
+              Navigator.of(context).pop();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Yes'),
+          ),
+        ],
       ),
     );
   }
@@ -125,21 +178,21 @@ class _MyComplaintsState extends State<MyComplaints> {
           style: TextStyle(
             fontFamily: 'Amaranth',
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF442C2E),
+            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFFFEEAE6),
+        backgroundColor: Colors.deepPurple.shade700,
         elevation: 0,
         centerTitle: true,
       ),
-      backgroundColor: const Color(0xFFFEEAE6),
+      backgroundColor: Colors.deepPurple.shade50,
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: fetchComplaints(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF442C2E)),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
               ),
             );
           }
@@ -185,115 +238,64 @@ class _MyComplaintsState extends State<MyComplaints> {
             itemCount: complaints.length,
             itemBuilder: (context, index) {
               final complaint = complaints[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 15),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.white,
-                      Colors.grey.shade50,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade300,
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+              return GestureDetector(
+                onTap: () => _showComplaintDetailsDialog(complaint),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white,
+                        Colors.deepPurple.shade50,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDetailRow(Icons.location_on, 'Address', complaint['address']),
-                      const SizedBox(height: 10),
-                      _buildDetailRow(Icons.label, 'Type', complaint['complaintType']),
-                      const SizedBox(height: 10),
-                      _buildDetailRow(Icons.label_important, 'Sub-Type', complaint['complaintSubType']),
-                      const SizedBox(height: 10),
-                      _buildDetailRow(Icons.description, 'Description', complaint['complaintDescription']),
-                      const SizedBox(height: 10),
-                      _buildStatusRow(complaint['status']),
-                      const SizedBox(height: 10),
-                      _buildDetailRow(
-                        Icons.timer,
-                        'Timestamp',
-                        complaint['timestamp'] != null
-                            ? DateFormat('yyyy-MM-dd – kk:mm').format(complaint['timestamp'].toDate())
-                            : 'Not available',
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.deepPurple.shade100,
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
-                      
-                      // Image Preview Section
-                      if (complaint['imageCID'] != null) ...[
-                        const SizedBox(height: 15),
-                        GestureDetector(
-                          onTap: () => _showImageDialog(context, complaint['imageCID']),
-                          child: Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: Image.network(
-                                'https://ipfs.io/ipfs/${complaint['imageCID']}',
-                                fit: BoxFit.cover,
-                                height: 150,
-                                width: double.infinity,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded /
-                                              (loadingProgress.expectedTotalBytes ?? 1)
-                                          : null,
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    height: 150,
-                                    color: Colors.grey.shade200,
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.broken_image,
-                                        size: 50,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  );
-                                },
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                complaint['complaintType'] ?? 'Unknown Complaint',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple.shade700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
+                            _buildStatusChip(complaint['status']),
+                          ],
                         ),
+                        const SizedBox(height: 10),
+                        Text(
+                          complaint['complaintDescription'] ?? 'No description provided',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 10),
+                        _buildDateTimeRow(complaint['timestamp']),
                       ],
-                      
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildActionButton(
-                            text: 'Cancel',
-                            color: Colors.orange,
-                            onPressed: () {
-                              updateComplaintStatus(complaint['id'], 'Canceled');
-                            },
-                          ),
-                          _buildActionButton(
-                            text: 'Delete',
-                            color: Colors.red,
-                            onPressed: () {
-                              deleteComplaint(complaint['id'], index);
-                              complaints.removeAt(index);
-                              setState(() {});
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -307,15 +309,15 @@ class _MyComplaintsState extends State<MyComplaints> {
   Widget _buildDetailRow(IconData icon, String title, String? value) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF442C2E)),
+        Icon(icon, color: Colors.deepPurple.shade700),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             '$title: ${value ?? 'Not available'}',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Amaranth',
               fontSize: 16,
-              color: Color(0xFF442C2E),
+              color: Colors.deepPurple.shade700,
             ),
           ),
         ),
@@ -323,54 +325,78 @@ class _MyComplaintsState extends State<MyComplaints> {
     );
   }
 
-  Widget _buildStatusRow(String? status) {
+  Widget _buildDateTimeRow(Timestamp? complaintTime) {
+    if (complaintTime == null) {
+      return const SizedBox.shrink();
+    }
+    
+    DateTime dateTime = complaintTime.toDate();
+    String formattedTime = DateFormat('hh:mm a').format(dateTime);
+    String formattedDate = DateFormat('dd MMM yyyy').format(dateTime);
+
     return Row(
       children: [
-        const Icon(Icons.check_circle_outline, color: Color(0xFF442C2E)),
+        Icon(Icons.calendar_today, color: Colors.deepPurple.shade700),
         const SizedBox(width: 10),
         Text(
-          'Status: ${status ?? 'Pending'}',
+          '$formattedDate at $formattedTime',
           style: TextStyle(
             fontFamily: 'Amaranth',
-            fontSize: 16,
-            color: status == 'Succeeded'
-                   ? Colors.green
-                   : status == 'Pending'
-                       ? Colors.orange
-                       : status == 'Canceled'
-                           ? Colors.red
-                           : status == 'In Progress'
-                               ? Colors.blue
-                               : Colors.yellow,
+            fontSize: 14,
+            color: Colors.grey.shade700,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButton({
-    required String text,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 30),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
+  Widget _buildStatusDetailRow(String? status) {
+    return Row(
+      children: [
+        Icon(Icons.check_circle_outline, color: _getStatusColor(status)),
+        const SizedBox(width: 10),
+        Text(
+          'Status: ${status ?? 'Pending'}',
+          style: TextStyle(
+            fontFamily: 'Amaranth',
+            fontSize: 16,
+            color: _getStatusColor(status),
+          ),
         ),
-        elevation: 5,
+      ],
+    );
+  }
+
+  Widget _buildStatusChip(String? status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _getStatusColor(status).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
+        status ?? 'Pending',
+        style: TextStyle(
+          color: _getStatusColor(status),
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          fontSize: 12,
         ),
       ),
     );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'Succeeded':
+        return Colors.green;
+      case 'Pending':
+        return Colors.orange;
+      case 'Canceled':
+        return Colors.red;
+      case 'In Progress':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 }
