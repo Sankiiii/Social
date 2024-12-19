@@ -198,6 +198,8 @@ class _RauseComplaintState extends State<RauseComplaint> {
         'timestamp': FieldValue.serverTimestamp(),
         'anonymous': false, // Default value
         'status': 'Pending',
+        'hotComplint' : 'false',
+        'vote' : 0
       };
 
       // Save the complaint to Firestore under the logged-in user's collection
@@ -226,7 +228,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
       ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Complaint Submitted Successfully!'),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.deepPurple,
         duration: Duration(seconds: 2), // Display duration of the SnackBar
       ),
     );
@@ -278,7 +280,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Image captured successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.deepPurple,
           ),
         );
       }
@@ -338,18 +340,18 @@ class _RauseComplaintState extends State<RauseComplaint> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: const Color(0xFFFEDBD0),
+        backgroundColor: Colors.deepPurple,
         title: Text(
           'Raise Complaint',
           style: TextStyle(
             fontFamily: 'Amaranth',
             fontWeight: FontWeight.bold,
             fontSize: 24,
-            color: Color(0xFF442C2E),
+            color: Colors.white,
           ),
         ),
       ),
-      backgroundColor: const Color(0xFFFEEAE6),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -365,7 +367,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
-                        color: files.isNotEmpty ? Colors.green.shade200 : Colors.grey.shade300,
+                        color: files.isNotEmpty ? Colors.deepPurple.shade200 : Colors.grey.shade300,
                         width: 2,
                       ),
                     ),
@@ -432,7 +434,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                                         'Upload Image',
                                         style: TextStyle(
                                           color: Colors.grey.shade600,
-                                          fontSize: 16,
+                                          fontSize: 16,fontFamily: 'Amaranth'
                                         ),
                                       ),
                                     ],
@@ -474,14 +476,14 @@ class _RauseComplaintState extends State<RauseComplaint> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: Row(
                         children: [
-                          Icon(Icons.location_on, color: Colors.green.shade700),
+                          Icon(Icons.location_on, color: Colors.deepPurple.shade700),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Location: $currentAddress',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.green.shade700,
+                                color: Colors.deepPurple.shade700,
                               ),
                             ),
                           ),
@@ -489,36 +491,43 @@ class _RauseComplaintState extends State<RauseComplaint> {
                       ),
                     ),
 
-                  ElevatedButton.icon(
-                    onPressed: _fetchCurrentLocation,
-                    icon: const Icon(Icons.location_searching),
-                    label: const Text('Fetch Location'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade400,
-                      foregroundColor: Colors.white,
-                    ),
+                 ElevatedButton.icon(
+                  onPressed: _fetchCurrentLocation,
+                  icon: const Icon(Icons.location_searching),
+                  label: const Text(
+                    'Fetch Location',
+                    style: TextStyle(fontFamily: 'Amaranth'), // Use the 'style' parameter here
                   ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple.shade400,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+
 
                   const SizedBox(height: 20),
 
                   // Complaint Description
                   TextFormField(
-                    controller: _complaintController,
-                    decoration: InputDecoration(
-                      labelText: 'Complaint Description',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      controller: _complaintController,
+                      decoration: InputDecoration(
+                        labelText: 'Complaint Description',
+                        labelStyle: const TextStyle(fontFamily: 'Amaranth'), // Set label font
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.description),
                       ),
-                      prefixIcon: const Icon(Icons.description),
+                      style: const TextStyle(fontFamily: 'Amaranth'), // Set input text font
+                      maxLines: 3,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a complaint description';
+                        }
+                        return null;
+                      },
                     ),
-                    maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a complaint description';
-                      }
-                      return null;
-                    },
-                  ),
+
 
                   const SizedBox(height: 20),
 
@@ -527,6 +536,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                     controller: _landmarkController,
                     decoration: InputDecoration(
                       labelText: 'Landmark (Optional)',
+                      labelStyle: const TextStyle(fontFamily: 'Amaranth'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -544,6 +554,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      labelStyle: const TextStyle(fontFamily: 'Amaranth'),
                       prefixIcon: const Icon(Icons.phone),
                     ),
                     keyboardType: TextInputType.phone,
@@ -570,6 +581,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       prefixIcon: const Icon(Icons.category),
+                      labelStyle: const TextStyle(fontFamily: 'Amaranth'),
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -642,6 +654,9 @@ class _RauseComplaintState extends State<RauseComplaint> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          fontFamily: "Amaranth"                   
+                  
+
                         ),
                       ),
                       Switch.adaptive(
@@ -651,7 +666,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                             hideContact = value;
                           });
                         },
-                        activeColor: Colors.green.shade400,
+                        activeColor: Colors.deepPurple.shade400,
                       ),
                     ],
                   ),
@@ -662,7 +677,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                   ElevatedButton(
                     onPressed: isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
+                      backgroundColor: Colors.deepPurple.shade600,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
@@ -678,6 +693,7 @@ class _RauseComplaintState extends State<RauseComplaint> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              fontFamily: "Amaranth" 
                             ),
                           ),
                   ),
