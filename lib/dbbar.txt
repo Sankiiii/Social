@@ -1,0 +1,12 @@
+users
+  └─ userId (Document)
+       ├─ notificationCount: 0
+       ├─ username: "Sanket"
+       ├─ profilePic: "QmcEKrQ3JeNg4G2nzU3y2yTrBmYxXWV2VbPf456RwSxH3K"
+       └─ complaints (Collection)
+           └─ complaintId (Document)
+               ├─ status: "In Progress"
+               ├─ address: "Mumbai"
+               └─ complaintDescription : ""
+               ├─ address: "Mumbai"
+               └─ .......
