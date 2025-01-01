@@ -423,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
 const SizedBox(width: 16),
 
 _buildQuickActionButton(
-  icon: CupertinoIcons.list_bullet,
+  icon: CupertinoIcons.exclamationmark_circle, // Replace with any other icon you prefer
   label: 'Raise Complaints',
   onTap: () {
     Navigator.pushNamed(context, 'raise');

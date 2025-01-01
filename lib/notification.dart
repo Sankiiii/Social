@@ -297,15 +297,17 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
           ),
           const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(context, 'raise');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-            ),
-            child: const Text('Raise Comaplaint'),
-          ),
+         ElevatedButton(
+  onPressed: () {
+    Navigator.pushNamed(context, 'raise');
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.deepPurple,  // button background color
+    foregroundColor: Colors.white,       // text color
+  ),
+  child: const Text('Raise Complaint'),
+)
+
         ],
       ),
     );
