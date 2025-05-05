@@ -75,10 +75,6 @@ cd civic-reporting-platform
 
 # Install dependencies (adjust based on framework)
 flutter pub get            # if Flutter
-npm install                # if React Native / Node
-pip install -r requirements.txt  # if Python backend
 
 # Run the app
 flutter run
-# or
-npm start
